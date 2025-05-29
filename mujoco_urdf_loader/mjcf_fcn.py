@@ -90,6 +90,47 @@ def add_position_actuator(
 
     return mjcf
 
+def add_torque_actuator(
+    mjcf: ET.Element,
+    joint: str,
+    ctrlrange: List[float] = None,
+    name: str = None,
+) -> ET.Element:
+    """Add a torque actuator to the joint.
+
+    Args:
+        mjcf (ET.Element): The mjcf file.
+        joint (str): The joint to add the actuator to.
+        ctrlrange (List[float]): The control range of the actuator (default: -1, 1).
+        kp (float): The proportional gain of the actuator (default: 10).
+        group (int): The group of the actuator (default: 0).
+        name (str): The name of the actuator (default: f"{joint}_motor").
+    """
+
+    # check if the ctrlrange is None
+    if ctrlrange is None:
+        ctrlrange = [-1, 1]
+
+    # check if there already is an actuator element in the mjcf
+    if mjcf.find(".//actuator") is None:
+        actuators = ET.Element("actuator")
+        mjcf.append(actuators)
+    else:
+        actuators = mjcf.find(".//actuator")
+
+    # check if there is already an actuator element for the joint
+    for actuator in actuators:
+        if actuator.attrib["joint"] == joint:
+            return mjcf
+
+    # create the torque actuator
+    motor = ET.SubElement(actuators, "motor")
+    motor.set("name", name if name is not None else f"{joint}_torque_motor")
+    motor.set("joint", joint)
+    motor.set("ctrlrange", f"{ctrlrange[0]} {ctrlrange[1]}")
+    motor.set("gear", "1")
+    return mjcf
+
 
 def add_joint_pos_sensor(mjcf: ET.Element, joint: str, name: str = None) -> ET.Element:
     """Add a joint position sensor to the joint.
