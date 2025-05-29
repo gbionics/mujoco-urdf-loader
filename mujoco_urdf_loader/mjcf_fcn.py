@@ -109,7 +109,7 @@ def add_torque_actuator(
 
     # check if the ctrlrange is None
     if ctrlrange is None:
-        ctrlrange = [-1, 1]
+        ctrlrange = [-1000, 1000]
 
     # check if there already is an actuator element in the mjcf
     if mjcf.find(".//actuator") is None:
