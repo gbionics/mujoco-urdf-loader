@@ -168,19 +168,20 @@ class URDFtoMuJoCoLoader:
         else:
             raise ValueError("joint must be a string or a list of strings.")
 
-    def add_actuator(self, joint: str, control_mode: ControlMode, ctrlrange: List[float] = None):
+    def add_actuator(self, joint: str, control_mode: ControlMode):
         """
         Add an actuator to the MJCF model.
 
         Args:
             joint (str): The joint name.
             control_mode (ControlMode): The control mode.
-            ctrlrange (List[float]): The control range.
         """
         if control_mode == ControlMode.POSITION:
+            joint_mjcf = self.mjcf.find(f".//joint[@name='{joint}']")
+            ctrlrange = list(map(float, joint_mjcf.attrib["range"].split()))
             add_position_actuator(self.mjcf, joint=joint, ctrlrange=ctrlrange)
         elif control_mode == ControlMode.TORQUE:
-            add_torque_actuator(self.mjcf, joint=joint, ctrlrange=ctrlrange)
+            add_torque_actuator(self.mjcf, joint=joint, ctrlrange=None)
         elif control_mode == ControlMode.VELOCITY:
             raise NotImplementedError("Velocity control is not implemented yet.")
         else:
@@ -199,8 +200,7 @@ class URDFtoMuJoCoLoader:
         for controlled_joint in self.controlled_joints:
             joint_element = joint_elements.get(controlled_joint)
             if joint_element is not None:
-                ctrlrange = list(map(float, joint_element.attrib["range"].split()))
-                self.add_actuator(controlled_joint, self.control_mode[controlled_joint], ctrlrange)
+                self.add_actuator(controlled_joint, self.control_mode[controlled_joint])
             else:
                 raise ValueError(f"Joint {controlled_joint} not found in the MJCF model.")
 
