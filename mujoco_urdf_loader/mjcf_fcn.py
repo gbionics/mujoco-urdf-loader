@@ -425,8 +425,6 @@ def add_sites_for_ft(mjcf: ET.Element, robot_urdf: ET.Element) -> ET.Element:
         rpy = list(map(float, fixed_link.find("origin").attrib["rpy"].split()))
         rotation = idyntree.Rotation.RPY(rpy[0], rpy[1], rpy[2])
         quaternion = rotation.asQuaternion()
-        print(quaternion)
-
         site.set(
             "quat", f"{quaternion[0]} {quaternion[1]} {quaternion[2]} {quaternion[3]}"
         )
@@ -454,8 +452,6 @@ def add_sites_for_imu(mjcf: ET.Element, robot_urdf: ET.Element) -> ET.Element:
         rpy = list(map(float, fixed_link.find("origin").attrib["rpy"].split()))
         rotation = idyntree.Rotation.RPY(rpy[0], rpy[1], rpy[2])
         quaternion = rotation.asQuaternion()
-        print(quaternion)
-
         site.set(
             "quat", f"{quaternion[0]} {quaternion[1]} {quaternion[2]} {quaternion[3]}"
         )
@@ -477,8 +473,6 @@ def add_sites_for_imu(mjcf: ET.Element, robot_urdf: ET.Element) -> ET.Element:
         rpy = list(map(float, sensor.find("origin").attrib["rpy"].split()))
         rotation = idyntree.Rotation.RPY(rpy[0], rpy[1], rpy[2])
         quaternion = rotation.asQuaternion()
-        print(quaternion)
-
         site.set(
             "quat", f"{quaternion[0]} {quaternion[1]} {quaternion[2]} {quaternion[3]}"
         )
