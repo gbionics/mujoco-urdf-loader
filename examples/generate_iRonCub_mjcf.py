@@ -29,83 +29,33 @@ from mujoco_urdf_loader.urdf_fcn import (
     remove_gazebo_elements,
 )
 
-### make sure you run this in your terminal before you launch the python script otherwise this doesnot work
-#  call <path\to\ironcub_ws\>\install\local_setup.bat
+
 # Print the value of the environment variable
-# package = os.getenv("IRONCUB_COMPONENT_SOURCE_DIR")
+package = os.getenv("IRONCUB_COMPONENT_SOURCE_DIR")
 # package = "C:/Users/pvanteddu/Documents/iRonCub_ws/src/component_ironcub"
 # # Load the robot urdf
-# robot_relative_path = "models/iRonCub-Mk3/iRonCub/robots/iRonCub-Mk3/model.urdf"
-robot_path = "C:/Users/pvanteddu/Documents/iRonCub_ws/src/component_ironcub/models/iRonCub-Mk3/iRonCub/robots/iRonCub-Mk3_Gazebo/model.urdf"
+robot_relative_path = "models/iRonCub-Mk3/iRonCub/robots/iRonCub-Mk3/model.urdf"
+mesh_relative_path = "models/iRonCub-Mk3/iRonCub/meshes/obj"
 
-# robot_urdf = ET.parse(robot_path).getroot()
+
+robot_path = os.path.join(
+    package, robot_relative_path
+)  # "C:/Users/pvanteddu/Documents/iRonCub_ws/src/component_ironcub/models/iRonCub-Mk3/iRonCub/robots/iRonCub-Mk3/model.urdf"
+robot_urdf = ET.parse(robot_path).getroot()
 robot_urdf = get_robot_urdf(robot_path)
-# find the mesh path
-mesh_relative_path = "C:/Users/pvanteddu/Documents/iRonCub_ws/src/component_ironcub/models/iRonCub-Mk3/iRonCub/meshes/obj"
 
-# mesh_path = "C:/Users/pvanteddu/Documents/GitHub/paper_vanteddu_2024_iros_cogenerative_cad/meshes"
+
+mesh_path = os.path.join(
+    package, mesh_relative_path
+)  # "C:/Users/pvanteddu/Documents/iRonCub_ws/src/component_ironcub/models/iRonCub-Mk3/iRonCub/meshes/obj"
+
 
 # remove the gazebo elements
 robot_urdf = remove_gazebo_elements(robot_urdf)
 
 # add the mujoco element
-robot_urdf = add_mujoco_element(robot_urdf, mesh_relative_path)
+robot_urdf = add_mujoco_element(robot_urdf, mesh_path)
 
-
-def validate_and_fix_inertia(mjcf: ET.Element):
-    """
-    Traverse all <inertial> elements in the MJCF and fix invalid inertia values.
-
-    Args:
-        mjcf (ET.Element): The MJCF file as ElementTree.
-    """
-    default_inertia = {
-        "ixx": 0.01,
-        "iyy": 0.01,
-        "izz": 0.01,
-        "ixy": 0.0,
-        "ixz": 0.0,
-        "iyz": 0.0,
-    }
-
-    for inertial in mjcf.findall(".//inertial"):
-        inertia = inertial.find("inertia")
-        if inertia is None:
-            # Add default inertia if missing
-            ET.SubElement(
-                inertial,
-                "inertia",
-                attrib={key: str(value) for key, value in default_inertia.items()},
-            )
-            print("Added default inertia to missing <inertia> element.")
-        else:
-            # Validate and fix existing inertia values
-            ixx = float(inertia.attrib.get("ixx", "0"))
-            iyy = float(inertia.attrib.get("iyy", "0"))
-            izz = float(inertia.attrib.get("izz", "0"))
-            ixy = float(inertia.attrib.get("ixy", "0"))
-            ixz = float(inertia.attrib.get("ixz", "0"))
-            iyz = float(inertia.attrib.get("iyz", "0"))
-
-            if (
-                ixx <= 0
-                or iyy <= 0
-                or izz <= 0
-                or ixx + iyy <= izz
-                or iyy + izz <= ixx
-                or izz + ixx <= iyy
-            ):
-                print(
-                    f"Invalid inertia detected: {inertial.attrib.get('name', 'unknown')} "
-                    f"(ixx={ixx}, iyy={iyy}, izz={izz}). Replacing with default values."
-                )
-                inertia.attrib.update(
-                    {key: str(value) for key, value in default_inertia.items()}
-                )
-
-
-# Apply inertia validation to the entire MJCF model
-# validate_and_fix_inertia(robot_urdf)
 
 controlled_joints = [
     "l_hip_pitch",
@@ -144,100 +94,22 @@ cfg = loader.URDFtoMuJoCoLoaderCfg(controlled_joints, control_modes, stiffness, 
 mjcf_root = ET.Element("mujoco", attrib={"model": "icub"})
 compiler = ET.SubElement(mjcf_root, "compiler", attrib={"balanceinertia": "true"})
 
-loader = loader.URDFtoMuJoCoLoader.load_urdf(robot_path, mesh_relative_path, cfg)
+loader = loader.URDFtoMuJoCoLoader.load_urdf(robot_path, mesh_path, cfg)
 mjcf = loader.mjcf
 
-
-# create a new worldbody, add the robot to it and remove the old worldbody
-# add_new_worldbody(mjcf, freeze_root=False)
-
-# for joint in mjcf.findall(".//body/joint"):
-#     ctrlrange = list(map(float, joint.attrib["range"].split()))
-#     add_position_actuator(
-#         mjcf,
-#         joint=joint.attrib["name"],
-#         ctrlrange=[float(ctrlrange.split()[0]), float(ctrlrange.split()[1])],
-#         kp=1500,
-#         dampratio=0.12,
-#         name=joint.attrib["name"],
-#     )
 
 # Set the damping
 set_joint_damping(mjcf, damping=2)
 
-# # Add visual elements
-# visual = ET.SubElement(mjcf_root, "visual")
-# ET.SubElement(
-#     visual, "headlight", diffuse="0.6 0.6 0.6", ambient="0.3 0.3 0.3", specular="0 0 0"
-# )
-# ET.SubElement(visual, "rgba", haze="0.15 0.25 0.35 1")
-# ET.SubElement(visual, "global", azimuth="120", elevation="-20")
-
-# # Add asset elements
-# asset = ET.SubElement(mjcf_root, "asset")
-# ET.SubElement(
-#     asset,
-#     "texture",
-#     type="2d",
-#     name="groundplane",
-#     builtin="checker",
-#     mark="edge",
-#     rgb1="0.2 0.3 0.4",
-#     rgb2="0.1 0.2 0.3",
-#     markrgb="0.8 0.8 0.8",
-#     width="300",
-#     height="300",
-# )
-# ET.SubElement(
-#     asset,
-#     "material",
-#     name="groundplane",
-#     texture="groundplane",
-#     texuniform="true",
-#     texrepeat="5 5",
-# )
-
-# # Add worldbody elements
-# worldbody = ET.SubElement(mjcf_root, "worldbody")
-# ET.SubElement(
-#     worldbody,
-#     "geom",
-#     name="ground",
-#     type="plane",
-#     pos="0 0 0",
-#     size="0 0 0.1",
-#     material="groundplane",
-# )
-# ET.SubElement(
-#     worldbody,
-#     "light",
-#     name="main_light",
-#     pos="0 0 2",
-#     dir="0 0 -1",
-#     diffuse="1 1 1",
-#     specular="0.5 0.5 0.5",
-#     directional="true",
-# )
-# ET.SubElement(worldbody, "camera", name="fixed", pos="1 -1 1", xyaxes="1 0 0 0 1 0")
-# ET.SubElement(
-#     worldbody,
-#     "camera",
-#     name="isometric",
-#     mode="targetbodycom",
-#     target="chest",
-#     pos="2 -2 2",
-#     xyaxes="1 0 0 0 0 1",
-# )
-
-# # Add option elements
-# ET.SubElement(
-#     mjcf_root, "option", gravity="0 0 -9.81", iterations="50", cone="elliptic"
-# )
-
 
 # # add sites for turbines
 def add_sites_turbines(
-    mjcf: ET.Element, body_name: str, geom_mesh: str, name: str = None
+    mjcf: ET.Element,
+    body_name: str,
+    geom_mesh: str,
+    site_name: str = None,
+    add_body_name: str = None,
+    add_geom_name: str = None,
 ) -> ET.Element:
     """Add sites to specific bodies in the mjcf file.
 
@@ -245,7 +117,11 @@ def add_sites_turbines(
         mjcf (ET.Element): The mjcf file as ElementTree.
         body_name (str): The name of the body to add the site to.
         geom_type (str): The type of the geom to add the site to.
-        name (str): The name of the site (default: f"{geom_type}_site").
+        site_name (str): The name of the site.
+        add_body_name (str): The name of the body to add under the site.
+        add_geom_name (str): The name of the geom to add under the site.
+
+
 
     Returns:
         ET.Element: The modified mjcf file.
@@ -261,18 +137,77 @@ def add_sites_turbines(
                 site = ET.SubElement(body, "site")
                 site.set(
                     "name",
-                    name if name is not None else f"{geom.attrib.get('mesh')}_site",
+                    (
+                        site_name
+                        if site_name is not None
+                        else f"{geom.attrib.get('mesh')}_site"
+                    ),
                 )
                 site.set("pos", geom_pos)
                 site.set("quat", geom_quat)
+                # Create a body
+                if add_body_name is not None:
+                    add_body = ET.SubElement(
+                        body, "body", name=add_body_name, pos=geom_pos, quat=geom_quat
+                    )
+                    # Add inertial properties to the new body
+                    ET.SubElement(
+                        add_body,
+                        "inertial",
+                        {
+                            "pos": "0 0 0",
+                            "quat": "1 0 0 0",
+                            "mass": "0.0",
+                            "diaginertia": "0.0 0.0 0.0",
+                        },
+                    )
+                    # Create a geom under the body
+                    ET.SubElement(
+                        add_body,
+                        "geom",
+                        name=add_geom_name if add_geom_name else f"{site_name}_geom",
+                        type="cylinder",
+                        pos="0 0 0.075",
+                        quat="1 0 0 0",
+                        size="0.02 0.15",
+                        rgba="1 0 0 0.5",
+                    )
 
     return mjcf
 
 
-add_sites_turbines(mjcf, "chest", "sim_sea_l_jet_turbine", "l_jet_turbine")
-add_sites_turbines(mjcf, "chest", "sim_sea_r_jet_turbine", "r_jet_turbine")
-add_sites_turbines(mjcf, "l_elbow_1", "sim_sea_l_arm_p250", "l_arm_turbine")
-add_sites_turbines(mjcf, "r_elbow_1", "sim_sea_r_arm_p250", "r_arm_turbine")
+add_sites_turbines(
+    mjcf,
+    "chest",
+    "sim_sea_l_jet_turbine",
+    "l_jet_turbine",
+    "l_jet_body",
+    "l_jet_cylinder",
+)
+add_sites_turbines(
+    mjcf,
+    "chest",
+    "sim_sea_r_jet_turbine",
+    "r_jet_turbine",
+    "r_jet_body",
+    "r_jet_cylinder",
+)
+add_sites_turbines(
+    mjcf,
+    "l_elbow_1",
+    "sim_sea_l_arm_p250",
+    "l_arm_turbine",
+    "l_arm_body",
+    "l_arm_cylinder",
+)
+add_sites_turbines(
+    mjcf,
+    "r_elbow_1",
+    "sim_sea_r_arm_p250",
+    "r_arm_turbine",
+    "r_arm_body",
+    "r_arm_cylinder",
+)
 
 
 # add sites for the  ft
@@ -432,6 +367,114 @@ def format_xml(mjcf: ET.Element) -> str:
     return "\n".join(line for line in xml_pretty.splitlines() if line.strip())
 
 
+def prepend_mujoco_configuration(mjcf: ET.Element) -> ET.Element:
+    """
+    Prepend the specified MuJoCo configuration to the MJCF model.
+
+    Args:
+        mjcf (ET.Element): The MJCF file as ElementTree.
+
+    Returns:
+        ET.Element: The modified MJCF file with the configuration prepended.
+    """
+    # Create a new root element with the desired configuration
+    new_root = ET.Element("mujoco", attrib={"model": "iCub"})
+
+    # Add the <visual> element
+    visual = ET.SubElement(new_root, "visual")
+    ET.SubElement(
+        visual,
+        "headlight",
+        diffuse="0.6 0.6 0.6",
+        ambient="0.3 0.3 0.3",
+        specular="0 0 0",
+    )
+    ET.SubElement(visual, "rgba", haze="0.15 0.25 0.35 1")
+    ET.SubElement(visual, "global", azimuth="120", elevation="-20")
+
+    # Add the <asset> element
+    asset = ET.SubElement(new_root, "asset")
+    ET.SubElement(
+        asset,
+        "texture",
+        type="2d",
+        name="groundplane",
+        builtin="checker",
+        mark="edge",
+        rgb1="0.2 0.3 0.4",
+        rgb2="0.1 0.2 0.3",
+        markrgb="0.8 0.8 0.8",
+        width="300",
+        height="300",
+    )
+    ET.SubElement(
+        asset,
+        "material",
+        name="groundplane",
+        texture="groundplane",
+        texuniform="true",
+        texrepeat="5 5",
+    )
+
+    # Add the <worldbody> element
+    worldbody = ET.SubElement(new_root, "worldbody")
+    ET.SubElement(
+        worldbody,
+        "geom",
+        name="ground",
+        type="plane",
+        pos="0 0 0",
+        size="0 0 0.1",
+        material="groundplane",
+    )
+    ET.SubElement(
+        worldbody,
+        "light",
+        name="main_light",
+        pos="0 0 2",
+        dir="0 0 -1",
+        diffuse="1 1 1",
+        specular="0.5 0.5 0.5",
+        directional="true",
+    )
+    ET.SubElement(worldbody, "camera", name="fixed", pos="1 -1 1", xyaxes="1 0 0 0 1 0")
+    ET.SubElement(
+        worldbody,
+        "camera",
+        name="isometric_com",
+        mode="targetbodycom",
+        target="chest",
+        pos="2 -2 2",
+        xyaxes="1 0 0 0 0 1",
+    )
+    ET.SubElement(
+        worldbody,
+        "camera",
+        name="isometric",
+        mode="targetbody",
+        target="chest",
+        pos="4 -2 1.5",
+        zaxis="1 0 0",
+    )
+
+    # Add the <option> element
+    ET.SubElement(
+        new_root, "option", gravity="0 0 -9.81", iterations="50", cone="elliptic"
+    )
+
+    # Add the <compiler> element
+    ET.SubElement(new_root, "compiler", angle="radian")
+
+    # Append the existing MJCF content to the new root
+    for child in mjcf:
+        new_root.append(child)
+
+    return new_root
+
+
+# Example usage:
+mjcf = prepend_mujoco_configuration(mjcf)
+
 add_jet_turbine_motors(mjcf)
 add_ft_sites_to_chest(mjcf, robot_urdf, "chest")
 
@@ -457,43 +500,20 @@ mjmodel_str = ET.tostring(mjcf, encoding="unicode", method="xml")
 # print(mjmodel_str)
 
 
+# Save the updated MJCF model to the XML file
+formatted_xml = format_xml(mjcf)
 with open("iRonCub.xml", "w") as f:
-    formatted_xml = format_xml(mjcf)
     f.write(formatted_xml)
+
+print("MuJoCo configuration prepended and saved to iRonCub.xml")
 
 # Save the model to a temporary file
 path_temp_xml = tempfile.NamedTemporaryFile(mode="w+", delete=False)
 with open(path_temp_xml.name, "w") as f:
     f.write(formatted_xml)
 
-# Include the model in a simple world
-world_str = f"""
-<mujoco model="iRonCubCubWorld">
-    <include file="{path_temp_xml.name}"/>
 
-    <visual>
-        <headlight diffuse="0.6 0.6 0.6" ambient="0.3 0.3 0.3" specular="0 0 0"/>
-        <rgba haze="0.15 0.25 0.35 1"/>
-        <global azimuth="120" elevation="-20"/>
-    </visual>
-
-    <asset>
-        <texture type="skybox" builtin="gradient" rgb1="0.3 0.5 0.7" rgb2="0 0 0" width="512" height="3072"/>
-        <texture type="2d" name="groundplane" builtin="checker" mark="edge" rgb1="0.2 0.3 0.4" rgb2="0.1 0.2 0.3"
-        markrgb="0.8 0.8 0.8" width="300" height="300"/>
-        <material name="groundplane" texture="groundplane" texuniform="true" texrepeat="5 5" reflectance="0.2"/>
-    </asset>
-
-    <worldbody>
-        <light pos="0 0 1.5" dir="0 0 -1" directional="true"/>
-        <camera name="default" pos="0.846 -1.465 0.916" xyaxes="0.866 0.500 0.000 -0.171 0.296 0.940"/>
-        <geom name="floor" pos="0 0 -0.78" size="0 0 0.05" type="plane" material="groundplane"/>
-    </worldbody>
-</mujoco>
-"""
-
-# Load the model in mujoco and visualize it
-model = mujoco.MjModel.from_xml_string(world_str)
+model = mujoco.MjModel.from_xml_path(path_temp_xml.name)
 data = mujoco.MjData(model)
 
 # Visualize the model
