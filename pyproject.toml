@@ -35,7 +35,7 @@ Repository = "https://github.com/ami-iit/mujoco-urdf-loader"
 
 [project.optional-dependencies]
 development = ["black", "isort", "pre-commit"]
-testing = ["pytest >= 6.0"]
+testing = ["pytest >= 6.0", "robot_descriptions"]
 all = ["mujoco-urdf-loader[development,testing]"]
 
 # [tool.setuptools]
@@ -56,3 +56,43 @@ line-length = 88
 [tool.isort]
 profile = "black"
 multi_line_output = 3
+
+[tool.pixi.project]
+channels = ["conda-forge"]
+platforms = ["linux-64", "linux-aarch64", "win-64", "osx-arm64"]
+
+# We duplicate the dependencies here to ensure that they are installed via conda
+# instead of pypi, that may not be necessary at some point in future pixi versions
+# if pixi learns to automatically solve pypi dependencies via conda packages,
+# see https://github.com/prefix-dev/pixi/issues/532
+[tool.pixi.dependencies]
+idyntree = "*"
+mujoco-python = "*"
+resolve-robotics-uri-py = "*"
+
+[tool.pixi.feature.development.dependencies]
+black = "*"
+isort = "*"
+pre-commit = "*"
+
+[tool.pixi.feature.testing.dependencies]
+pytest = ">=6.0"
+robot_descriptions = "*"
+# This is just here as ergocub-software is not available on pypi
+ergocub-software = "*"
+# This should not be necessary, but without that we get "missing module smmap"
+# when animal_c is loaded, let's add it for now but it may be worth in the future
+# to check if we can remove it
+gitpython = "*"
+
+[tool.pixi.pypi-dependencies]
+mujoco-urdf-loader = { path = ".", editable = true }
+
+[tool.pixi.environments]
+default = { solve-group = "default" }
+all = { features = ["all", "development", "testing"], solve-group = "default" }
+development = { features = ["development"], solve-group = "default" }
+testing = { features = ["testing"], solve-group = "default" }
+
+[tool.pixi.feature.testing.tasks]
+test = "pytest"
