@@ -456,6 +456,15 @@ def prepend_mujoco_configuration(mjcf: ET.Element) -> ET.Element:
         pos="4 -2 1.5",
         zaxis="1 0 0",
     )
+    ET.SubElement(
+        worldbody,
+        "camera",
+        name="track_base_link",
+        mode="trackcom",
+        target="chest",
+        pos="2.5 -2.5 1",
+        xyaxes="1 1 0 0 1 3",
+    )
 
     # Add the <option> element
     ET.SubElement(
