@@ -171,3 +171,75 @@ class URDFtoMuJoCoLoader:
             str: The Mujoco XML string.
         """
         return ET.tostring(self.mjcf, encoding="unicode", method="xml")
+    
+@dataclasses.dataclass
+class MujocoWrapper:
+    mjcf: str
+
+    def __post_init__(self):
+        self.model = mujoco.MjModel.from_xml_string(self.mjcf)
+        self.data = mujoco.MjData(self.model)
+        self.joint_names = [self.model.joint(j).name for j in range(self.model.njnt) if self.model.joint(j).name != "base_link_fixed_joint"]
+        self.actuator_names = [self.model.actuator(a).name for a in range(self.model.nu)]
+        self.joint_to_actuator_mapping = np.zeros((self.model.nu, self.model.nq - 7))
+        self.actuator_to_joint_mapping = np.zeros((self.model.nq - 7, self.model.nu))
+        for i, joint_name in enumerate(self.joint_names):
+            for j, actuator_name in enumerate(self.actuator_names):
+                if joint_name in actuator_name:
+                    self.joint_to_actuator_mapping[j, i] = 1
+                    self.actuator_to_joint_mapping[i, j] = 1
+
+    def set_control(self, control: np.ndarray):
+        """
+        Set the control input.
+
+        Args:
+            control (np.ndarray): The control input.
+        """
+        self.data.ctrl[:] = control
+
+    def get_joint_positions(self):
+        """
+        Get the joint positions.
+
+        Returns:
+            np.ndarray: The joint positions.
+        """
+        return self.joint_to_actuator_mapping @ self.data.qpos[7:]
+    
+    def get_joint_velocities(self):
+        """
+        Get the joint velocities.
+
+        Returns:
+            np.ndarray: The joint velocities.
+        """
+        return self.joint_to_actuator_mapping @ self.data.qvel[6:]
+    
+    def get_base_position(self):
+        """
+        Get the base position.
+
+        Returns:
+            np.ndarray: The base position.
+        """
+        return self.data.qpos[:3]
+    
+    def get_base_orientation(self):
+        """
+        Get the base orientation.
+
+        Returns:
+            np.ndarray: The base orientation in quaternion (scalar first).
+        """
+        return self.data.qpos[3:7]
+
+    def get_base_velocity(self):
+        """
+        Get the base velocity, linear and angular. MuJoCo returns the base velocity in the mixed representation.
+
+        Returns:
+            np.ndarray: The base velocity (linear and angular).
+        """
+        return self.data.qvel[:6]
+
