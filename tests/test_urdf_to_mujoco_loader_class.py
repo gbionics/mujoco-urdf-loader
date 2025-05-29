@@ -6,7 +6,7 @@ import pytest
 import resolve_robotics_uri_py as rru
 
 # Import the ANYmal robot description
-from robot_descriptions import anymal_c_description as anymal_description
+from robot_descriptions import anymal_c_description
 
 from mujoco_urdf_loader import ControlMode, URDFtoMuJoCoLoader, URDFtoMuJoCoLoaderCfg
 from mujoco_urdf_loader.urdf_fcn import get_mesh_path
@@ -62,8 +62,8 @@ ROBOTS = {
             "RH_HFE",
             "RH_KFE",
         ],
-        "urdf_path": anymal_description.URDF_PATH,
-        "mesh_path": f"{anymal_description.PACKAGE_PATH}/meshes",
+        "urdf_path": anymal_c_description.URDF_PATH,
+        "mesh_path": f"{anymal_c_description.PACKAGE_PATH}/meshes",
     },
 }
 
