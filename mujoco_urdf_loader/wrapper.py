@@ -1,7 +1,9 @@
 import dataclasses
 import logging
-import numpy as np
+
 import mujoco
+import numpy as np
+
 
 @dataclasses.dataclass
 class MujocoWrapper:
@@ -37,7 +39,7 @@ class MujocoWrapper:
         if control.shape != self.data.ctrl.shape:
             raise ValueError(f"Control input shape {control.shape} does not match the expected shape {self.data.ctrl.shape}.")
         self.data.ctrl[:] = control
-    
+
     @property
     def joint_positions(self):
         """
@@ -47,7 +49,7 @@ class MujocoWrapper:
             np.ndarray: The joint positions.
         """
         return self.joint_to_actuator_mapping @ self.data.qpos[7:]
-    
+
     @property
     def joint_velocities(self):
         """
@@ -57,7 +59,7 @@ class MujocoWrapper:
             np.ndarray: The joint velocities.
         """
         return self.joint_to_actuator_mapping @ self.data.qvel[6:]
-    
+
     @property
     def base_position(self):
         """
@@ -67,7 +69,7 @@ class MujocoWrapper:
             np.ndarray: The base position.
         """
         return self.data.qpos[:3]
-    
+
     @property
     def base_orientation(self):
         """
@@ -87,4 +89,3 @@ class MujocoWrapper:
             np.ndarray: The base velocity (linear and angular).
         """
         return self.data.qvel[:6]
-    
