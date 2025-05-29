@@ -1,5 +1,10 @@
-from mujoco_urdf_loader import URDFtoMuJoCoLoader, URDFtoMuJoCoLoaderCfg, ControlMode
+from xml.etree import ElementTree as ET
+
 import resolve_robotics_uri_py as rru
+
+from mujoco_urdf_loader import ControlMode, URDFtoMuJoCoLoader, URDFtoMuJoCoLoaderCfg
+from mujoco_urdf_loader.urdf_fcn import get_mesh_path
+
 
 def test_load_urdf_into_mjcf():
 
@@ -41,8 +46,9 @@ def test_load_urdf_into_mjcf():
     urdf_string = str(
         rru.resolve_robotics_uri("package://ergoCub/robots/ergoCubSN002/model.urdf")
     )
+    mesh_path = get_mesh_path(ET.parse(urdf_string).getroot())
 
-    loader = URDFtoMuJoCoLoader.load_urdf(urdf_string, cfg)
+    loader = URDFtoMuJoCoLoader.load_urdf(urdf_string, mesh_path, cfg)
 
     mjcf = loader.get_mjcf_string()
 
