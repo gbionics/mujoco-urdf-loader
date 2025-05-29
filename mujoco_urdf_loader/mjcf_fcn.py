@@ -359,3 +359,62 @@ def add_sphere(
     geom.set("mass", f"{mass}")
 
     return mjcf
+
+
+def add_sites_for_ft(mjcf: ET.Element, robot_urdf: ET.Element) -> ET.Element:
+    for fixed_link in robot_urdf.findall(".//joint[@type='fixed']"):
+        if "_ft_sensor" not in fixed_link.attrib["name"]:
+            continue
+
+        parent = fixed_link.find("parent").attrib["link"]
+        body = mjcf.find(f".//body[@name='{parent}']")
+        if body is None:
+            print(f"Body {parent} not found in mjcf")
+            continue
+
+        # Create <site> element
+        site = ET.SubElement(body, "site")
+        site.set(
+            "name",
+            fixed_link.attrib["name"],
+        )
+        site.set("pos", fixed_link.find("origin").attrib["xyz"])
+        site.set("euler", fixed_link.find("origin").attrib["rpy"])
+    return mjcf
+
+
+def add_sites_for_imu(mjcf: ET.Element, robot_urdf: ET.Element) -> ET.Element:
+    for fixed_link in robot_urdf.findall(".//joint[@type='fixed']"):
+        if "_imu" not in fixed_link.attrib["name"]:
+            continue
+
+        parent = fixed_link.find("parent").attrib["link"]
+        body = mjcf.find(f".//body[@name='{parent}']")
+        if body is None:
+            print(f"Body {parent} not found in mjcf")
+            continue
+
+        # Create <site> element
+        site = ET.SubElement(body, "site")
+        site.set(
+            "name",
+            fixed_link.attrib["name"],
+        )
+        site.set("pos", fixed_link.find("origin").attrib["xyz"])
+        site.set("euler", fixed_link.find("origin").attrib["rpy"])
+    for sensor in robot_urdf.findall(".//sensor[@type='accelerometer']"):
+        parent = sensor.find("parent").attrib["link"]
+        body = mjcf.find(f".//body[@name='{parent}']")
+        if body is None:
+            print(f"Body {parent} not found in mjcf")
+            continue
+
+        # Create <site> element
+        site = ET.SubElement(body, "site")
+        site.set(
+            "name",
+            sensor.attrib["name"],
+        )
+        site.set("pos", sensor.find("origin").attrib["xyz"])
+        site.set("euler", sensor.find("origin").attrib["rpy"])
+    return mjcf
