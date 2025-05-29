@@ -1,0 +1,289 @@
+<?xml version="1.0" ?>
+<mujoco model="iDynTreeURDFModelExportModelName">
+    <compiler angle="radian" meshdir="C:/Users/pvanteddu/Documents/iRonCub_ws/src/component_ironcub/models/iRonCub-Mk3/iRonCub/meshes/stl/"/>
+    <asset>
+        <mesh name="sim_icub3_root_link" file="sim_icub3_root_link.stl" scale="0.001 0.001 0.001"/>
+        <mesh name="sim_icub3_l_hip_1" file="sim_icub3_l_hip_1.stl" scale="0.001 0.001 0.001"/>
+        <mesh name="sim_icub3_r_hip_1" file="sim_icub3_r_hip_1.stl" scale="0.001 0.001 0.001"/>
+        <mesh name="sim_icub3_torso_1" file="sim_icub3_torso_1.stl" scale="0.001 0.001 0.001"/>
+        <mesh name="sim_icub3_torso_2" file="sim_icub3_torso_2.stl" scale="0.001 0.001 0.001"/>
+        <mesh name="sim_icub3_chest" file="sim_icub3_chest.stl" scale="0.001 0.001 0.001"/>
+        <mesh name="sim_head_neck_1" file="sim_head_neck_1.stl" scale="0.001 0.001 0.001"/>
+        <mesh name="sim_sea_3_jetpack_" file="sim_sea_3_jetpack_.stl" scale="0.001 0.001 0.001"/>
+        <mesh name="sim_icub3_l_shoulder_1" file="sim_icub3_l_shoulder_1.stl" scale="0.001 0.001 0.001"/>
+        <mesh name="sim_icub3_r_shoulder_1" file="sim_icub3_r_shoulder_1.stl" scale="0.001 0.001 0.001"/>
+        <mesh name="sim_sea_3_l_jet_roll" file="sim_sea_3_l_jet_roll.stl" scale="0.001 0.001 0.001"/>
+        <mesh name="sim_sea_l_jet_turbine" file="sim_sea_l_jet_turbine.stl" scale="0.001 0.001 0.001"/>
+        <mesh name="sim_sea_3_r_jet_roll" file="sim_sea_3_r_jet_roll.stl" scale="0.001 0.001 0.001"/>
+        <mesh name="sim_sea_r_jet_turbine" file="sim_sea_r_jet_turbine.stl" scale="0.001 0.001 0.001"/>
+        <mesh name="sim_head_neck_2" file="sim_head_neck_2.stl" scale="0.001 0.001 0.001"/>
+        <mesh name="sim_head_neck_3" file="sim_head_neck_3.stl" scale="0.001 0.001 0.001"/>
+        <mesh name="sim_head_head" file="sim_head_head.stl" scale="0.001 0.001 0.001"/>
+        <mesh name="sim_icub3_r_shoulder_2" file="sim_icub3_r_shoulder_2.stl" scale="0.001 0.001 0.001"/>
+        <mesh name="sim_icub3_r_shoulder_3" file="sim_icub3_r_shoulder_3.stl" scale="0.001 0.001 0.001"/>
+        <mesh name="sim_icub3_r_upperarm" file="sim_icub3_r_upperarm.stl" scale="0.001 0.001 0.001"/>
+        <mesh name="sim_icub3_r_elbow_prosup" file="sim_icub3_r_elbow_prosup.stl" scale="0.001 0.001 0.001"/>
+        <mesh name="sim_sea_r_arm_p250" file="sim_sea_r_arm_p250.stl" scale="0.001 0.001 0.001"/>
+        <mesh name="sim_icub3_l_shoulder_2" file="sim_icub3_l_shoulder_2.stl" scale="0.001 0.001 0.001"/>
+        <mesh name="sim_icub3_l_shoulder_3" file="sim_icub3_l_shoulder_3.stl" scale="0.001 0.001 0.001"/>
+        <mesh name="sim_icub3_l_upperarm" file="sim_icub3_l_upperarm.stl" scale="0.001 0.001 0.001"/>
+        <mesh name="sim_icub3_l_elbow_prosup" file="sim_icub3_l_elbow_prosup.stl" scale="0.001 0.001 0.001"/>
+        <mesh name="sim_sea_l_arm_p250" file="sim_sea_l_arm_p250.stl" scale="0.001 0.001 0.001"/>
+        <mesh name="sim_icub3_r_hip_2" file="sim_icub3_r_hip_2.stl" scale="0.001 0.001 0.001"/>
+        <mesh name="sim_icub3_r_hip_3" file="sim_icub3_r_hip_3.stl" scale="0.001 0.001 0.001"/>
+        <mesh name="sim_icub3_r_upper_leg" file="sim_icub3_r_upper_leg.stl" scale="0.001 0.001 0.001"/>
+        <mesh name="sim_icub3_r_lower_leg" file="sim_icub3_r_lower_leg.stl" scale="0.001 0.001 0.001"/>
+        <mesh name="sim_icub3_r_ankle_1" file="sim_icub3_r_ankle_1.stl" scale="0.001 0.001 0.001"/>
+        <mesh name="sim_icub3_r_ankle_2" file="sim_icub3_r_ankle_2.stl" scale="0.001 0.001 0.001"/>
+        <mesh name="sim_icub3_l_hip_2" file="sim_icub3_l_hip_2.stl" scale="0.001 0.001 0.001"/>
+        <mesh name="sim_icub3_l_hip_3" file="sim_icub3_l_hip_3.stl" scale="0.001 0.001 0.001"/>
+        <mesh name="sim_icub3_l_upper_leg" file="sim_icub3_l_upper_leg.stl" scale="0.001 0.001 0.001"/>
+        <mesh name="sim_icub3_l_lower_leg" file="sim_icub3_l_lower_leg.stl" scale="0.001 0.001 0.001"/>
+        <mesh name="sim_icub3_l_ankle_1" file="sim_icub3_l_ankle_1.stl" scale="0.001 0.001 0.001"/>
+        <mesh name="sim_icub3_l_ankle_2" file="sim_icub3_l_ankle_2.stl" scale="0.001 0.001 0.001"/>
+    </asset>
+    <worldbody>
+        <body name="root_link">
+            <inertial pos="0.0035506 -0.000149592 0.024519" quat="0.999531 0.00379601 -0.0301892 0.00340234" mass="2.66299" diaginertia="0.00462616 0.00418985 0.00261671"/>
+            <joint name="base_link_fixed_joint" type="free" limited="false" actuatorfrclimited="false" damping="2"/>
+            <geom type="mesh" mesh="sim_icub3_root_link" contype="0" conaffinity="0"/>
+            <body name="l_hip_1" pos="0.0216 0.04045 0" quat="1 0 0 0">
+                <inertial pos="-0.00407407 0.0281233 -0.000724326" quat="0.548121 0.513742 0.460106 0.473217" mass="2.23484" diaginertia="0.00269237 0.00244311 0.00218265"/>
+                <joint name="l_hip_pitch" pos="0 0 0" axis="0 -1 0" range="-0.785398 2.00713" actuatorfrcrange="-1000000000 1000000000" damping="2"/>
+                <geom type="mesh" mesh="sim_icub3_l_hip_1" contype="1" conaffinity="6"/>
+                <body name="l_hip_2" pos="-0.04725 0.0331 -0.009" quat="1 0 0 0">
+                    <inertial pos="0.0199603 -0.00680607 -0.0876894" quat="0.688273 -0.208005 -0.147871 0.679079" mass="4.12061" diaginertia="0.0197755 0.0181139 0.00638926"/>
+                    <joint name="l_hip_roll" pos="0 0 0" axis="1 0 0" range="-0.174533 1.95477" actuatorfrcrange="-1000000000 1000000000" damping="2"/>
+                    <geom type="mesh" mesh="sim_icub3_l_hip_2" contype="1" conaffinity="6"/>
+                    <geom pos="0.0367 0 -0.0897" type="mesh" mesh="sim_icub3_l_hip_3" contype="1" conaffinity="6"/>
+                    <body name="l_upper_leg" pos="0.0367 -0.015 -0.1606" quat="1 0 0 0">
+                        <inertial pos="0.00523811 0.00149931 -0.0518513" quat="0.995117 0.0572478 -0.0803044 -0.00400651" mass="0.940298" diaginertia="0.00244183 0.00193333 0.000997255"/>
+                        <joint name="l_hip_yaw" pos="0 0 0" axis="0 0 1" range="-1.39626 1.39626" actuatorfrcrange="-1000000000 1000000000" damping="2"/>
+                        <geom type="mesh" mesh="sim_icub3_l_upper_leg" contype="1" conaffinity="6"/>
+                        <body name="l_lower_leg" pos="0.015 0.0249 -0.1062" quat="1 0 0 0">
+                            <inertial pos="-0.0132211 -0.0220632 -0.126395" quat="0.692378 -0.000754771 0.00355445 0.721526" mass="5.22092" diaginertia="0.0571244 0.0546229 0.00595032"/>
+                            <joint name="l_knee" pos="0 0 0" axis="0 -1 0" range="-1.22173 0.0872665" actuatorfrcrange="-1000000000 1000000000" damping="2"/>
+                            <geom type="mesh" mesh="sim_icub3_l_lower_leg" contype="1" conaffinity="6"/>
+                            <body name="l_ankle_1" pos="0 -0.0005 -0.255988">
+                                <inertial pos="-0.00567091 -0.000477589 -0.0151979" quat="0.588728 0.350735 0.559781 0.465864" mass="0.378178" diaginertia="0.000739988 0.000551699 0.000300462"/>
+                                <joint name="l_ankle_pitch" pos="0 0 0" axis="0 1 0" range="-0.785398 0.785398" actuatorfrcrange="-1000000000 1000000000" damping="2"/>
+                                <geom type="mesh" mesh="sim_icub3_l_ankle_1" contype="1" conaffinity="6"/>
+                                <body name="l_ankle_2" pos="-0.05275 -0.0182 -0.035" quat="1 0 0 0">
+                                    <inertial pos="0.0487712 -4.43223e-05 -0.0331105" quat="0.448936 0.545752 0.547746 0.447868" mass="1.79372" diaginertia="0.0103439 0.0102087 0.00215293"/>
+                                    <joint name="l_ankle_roll" pos="0 0 0" axis="1 0 0" range="-0.436332 0.436332" actuatorfrcrange="-1000000000 1000000000" damping="2"/>
+                                    <geom type="mesh" mesh="sim_icub3_l_ankle_2" contype="1" conaffinity="6"/>
+                                    <geom size="0.0575 0.05 0.0025" pos="0.135327 -3.9e-05 -0.0623" type="box"/>
+                                    <geom size="0.0575 0.05 0.0025" pos="0.0165 3.3e-05 -0.0623" type="box"/>
+                                    <site name="l_foot_front_ft_fixed_joint" pos="0.13525 2.7755575615628914e-17 -0.043500000000000094" quat="0.49999999999999994 -1.6064465647710993e-16 4.401502965657393e-17 -0.8660254037844387"/>
+                                    <site name="l_foot_rear_ft_fixed_joint" pos="0.016000000000000007 1.3877787807814457e-17 -0.043500000000000094" quat="0.49999999999999994 1.2235542307980193e-16 -1.130885792944841e-16 -0.8660254037844387"/>
+                                    <site name="l_sole" pos="0.07563000000000002 1.3877787807814392e-17 -0.06580000000000019" quat="1.0 -3.9443045261050625e-31 -4.163336342344669e-17 -8.480254731125877e-30"/>
+                                    <site name="l_sole_3" pos="-0.019 -0.02474999999999996 -0.06580000000000019" quat="1.0 -3.9443045261050625e-31 -4.163336342344669e-17 -8.480254731125877e-30"/>
+                                    <site name="l_sole_4" pos="-0.018999999999999993 0.03025000000000004 -0.06580000000000019" quat="1.0 -3.9443045261050625e-31 -4.163336342344669e-17 -8.480254731125877e-30"/>
+                                    <site name="l_sole_1" pos="0.16025000000000006 0.02525000000000001 -0.06580000000000041" quat="1.0 -3.9443045261050625e-31 -4.16333634234463e-17 -1.0255191767873153e-29"/>
+                                    <site name="l_sole_2" pos="0.16025000000000006 -0.024749999999999987 -0.0658000000000003" quat="1.0 -3.9443045261050625e-31 -4.16333634234463e-17 -1.0255191767873153e-29"/>
+                                </body>
+                            </body>
+                        </body>
+                    </body>
+                </body>
+            </body>
+            <body name="r_hip_1" pos="0.0216 -0.04055 0" quat="1 0 0 0">
+                <inertial pos="-0.00410649 -0.0281098 -0.000835856" quat="0.477905 0.453454 0.502998 0.559446" mass="2.23609" diaginertia="0.00277635 0.00244842 0.00226399"/>
+                <joint name="r_hip_pitch" pos="0 0 0" axis="0 -1 0" range="-0.785398 2.00713" actuatorfrcrange="-1000000000 1000000000" damping="2"/>
+                <geom type="mesh" mesh="sim_icub3_r_hip_1" contype="4" conaffinity="3"/>
+                <body name="r_hip_2" pos="-0.0473 -0.0331 -0.009" quat="1 0 0 0">
+                    <inertial pos="0.0199557 0.00681416 -0.0877119" quat="0.679219 -0.147117 -0.207622 0.688412" mass="4.12061" diaginertia="0.0198289 0.0181585 0.00640178"/>
+                    <joint name="r_hip_roll" pos="0 0 0" axis="-1 0 0" range="-0.174533 1.95477" actuatorfrcrange="-1000000000 1000000000" damping="2"/>
+                    <geom type="mesh" mesh="sim_icub3_r_hip_2" contype="4" conaffinity="3"/>
+                    <geom pos="0.0367 0 -0.0897" quat="1 0 0 0" type="mesh" mesh="sim_icub3_r_hip_3" contype="4" conaffinity="3"/>
+                    <body name="r_upper_leg" pos="0.0367 0.015 -0.1606" quat="1 0 0 0">
+                        <inertial pos="0.00524034 -0.00149981 -0.0518573" quat="0.995132 -0.0570249 -0.0802746 0.00399182" mass="0.940298" diaginertia="0.00244493 0.00193628 0.000997161"/>
+                        <joint name="r_hip_yaw" pos="0 0 0" axis="0 0 -1" range="-1.39626 1.39626" actuatorfrcrange="-1000000000 1000000000" damping="2"/>
+                        <geom type="mesh" mesh="sim_icub3_r_upper_leg" contype="4" conaffinity="3"/>
+                        <body name="r_lower_leg" pos="0.015 -0.0249 -0.1062" quat="1 0 0 0">
+                            <inertial pos="-0.0131024 0.0219867 -0.127261" quat="0.722146 0.00274951 -0.000778203 0.691735" mass="5.24944" diaginertia="0.0577544 0.0552301 0.00598147"/>
+                            <joint name="r_knee" pos="0 0 0" axis="0 -1 0" range="-1.22173 0.0872665" actuatorfrcrange="-1000000000 1000000000" damping="2"/>
+                            <geom type="mesh" mesh="sim_icub3_r_lower_leg" contype="4" conaffinity="3"/>
+                            <body name="r_ankle_1" pos="0 0.0005 -0.255988" quat="1 0 0 0">
+                                <inertial pos="-0.00566575 0.000476357 -0.0151867" quat="0.470241 0.556814 0.353879 0.586175" mass="0.378178" diaginertia="0.000748542 0.000552263 0.000309816"/>
+                                <joint name="r_ankle_pitch" pos="0 0 0" axis="0 1 0" range="-0.785398 0.785398" actuatorfrcrange="-1000000000 1000000000" damping="2"/>
+                                <geom type="mesh" mesh="sim_icub3_r_ankle_1" contype="4" conaffinity="3"/>
+                                <body name="r_ankle_2" pos="-0.05275 0.0182 -0.035" quat="1 0 0 0">
+                                    <inertial pos="0.0487865 0.000102088 -0.032957" quat="0.473712 0.514454 0.579171 0.418922" mass="1.7947" diaginertia="0.0104816 0.0102293 0.00228389"/>
+                                    <joint name="r_ankle_roll" pos="0 0 0" axis="-1 0 0" range="-0.436332 0.436332" actuatorfrcrange="-1000000000 1000000000" damping="2"/>
+                                    <geom type="mesh" mesh="sim_icub3_r_ankle_2" contype="4" conaffinity="3"/>
+                                    <geom size="0.0575 0.05 0.0025" pos="0.13485 0.0004 -0.0623" quat="1 0 0 0" type="box"/>
+                                    <geom size="0.0575 0.05 0.0025" pos="0.0166 7e-05 -0.0623" quat="1 0 0 0" type="box"/>
+                                    <site name="r_foot_front_ft_fixed_joint" pos="0.13524999999999834 -1.3877787807814457e-17 -0.04349999999999987" quat="0.4999999999999995 -1.4676686866929402e-16 6.805206323636893e-17 -0.8660254037844389"/>
+                                    <site name="r_foot_rear_ft_fixed_joint" pos="0.015999999999998335 1.3877787807814457e-17 -0.04349999999999998" quat="0.4999999999999995 1.3623321088761854e-16 -8.905154571468973e-17 -0.8660254037844389"/>
+                                    <site name="r_sole" pos="0.07562999999999748 1.3877787807814444e-17 -0.06579999999999986" quat="1.0 1.821885974167782e-30 1.918247132736051e-14 2.839554571460882e-17"/>
+                                    <site name="r_sole_3" pos="-0.019000000000002515 0.024850000000000018 -0.06579999999999975" quat="1.0 1.821885974167782e-30 1.918247132736051e-14 2.839554571460882e-17"/>
+                                    <site name="r_sole_4" pos="-0.019000000000002522 -0.030149999999999955 -0.06579999999999986" quat="1.0 1.821885974167782e-30 1.918247132736051e-14 2.839554571460882e-17"/>
+                                    <site name="r_sole_1" pos="0.1602499999999975 -0.025149999999999978 -0.06579999999999964" quat="1.0 2.4416416372573557e-31 1.9182471327360514e-14 2.8395545714610005e-17"/>
+                                    <site name="r_sole_2" pos="0.16024999999999745 0.024850000000000018 -0.06579999999999964" quat="1.0 2.4416416372573557e-31 1.9182471327360514e-14 2.8395545714610005e-17"/>
+                                </body>
+                            </body>
+                        </body>
+                    </body>
+                </body>
+            </body>
+            <body name="torso_1" pos="0 -5e-05 0.0605" quat="1 0 0 0">
+                <inertial pos="-0.0080042 0.000351303 0.0519448" quat="0.6895 0.151843 0.149472 0.692237" mass="1.75684" diaginertia="0.003518 0.0028564 0.00197719"/>
+                <joint name="torso_roll" pos="0 0 0" axis="-1 0 0" range="-0.401426 0.401426" actuatorfrcrange="-1000000000 1000000000" damping="2"/>
+                <geom type="mesh" mesh="sim_icub3_torso_1" contype="2" conaffinity="5"/>
+                <body name="torso_2" pos="0 5e-05 0.0725">
+                    <inertial pos="0.00131935 0.00332192 0.0268081" quat="0.765504 0.643072 0.0166813 -0.0135724" mass="0.797301" diaginertia="0.0015106 0.00126464 0.000825127"/>
+                    <joint name="torso_pitch" pos="0 0 0" axis="0 1 0" range="-0.314159 0.785398" actuatorfrcrange="-1000000000 1000000000" damping="2"/>
+                    <geom type="mesh" mesh="sim_icub3_torso_2" contype="2" conaffinity="5"/>
+                    <body name="chest" pos="0 0 0.06447">
+                        <inertial pos="-0.10146 -6.55823e-05 0.138666" quat="0.000464624 0.908741 -0.000839252 0.417359" mass="15.5632" diaginertia="0.295476 0.287945 0.0691153"/>
+                        <joint name="torso_yaw" pos="0 0 0" axis="0 0 -1" range="-0.750492 0.750492" actuatorfrcrange="-1000000000 1000000000" damping="2"/>
+                        <geom type="mesh" mesh="sim_icub3_chest" contype="2" conaffinity="5"/>
+                        <geom pos="-0.00378849 0 0.1653" type="mesh" mesh="sim_head_neck_1" contype="2" conaffinity="5"/>
+                        <geom pos="0 0 0.116388" quat="0.707107 0 0 -0.707107" type="mesh" mesh="sim_sea_3_jetpack_" contype="2" conaffinity="5"/>
+                        <body name="l_shoulder_1" pos="-0.0208351 0.0397423 0.105203" quat="0.983506 0.125212 -0.0164845 -0.129481">
+                            <inertial pos="0.000167632 0.0872256 0.000450898" quat="0.710384 0.702377 -0.0300533 0.033438" mass="0.813288" diaginertia="0.00109227 0.00106878 0.000321833"/>
+                            <joint name="l_shoulder_pitch" pos="0 0 0" axis="0 1 0" range="-3.05433 0.349066" actuatorfrcrange="-1000000000 1000000000" damping="2"/>
+                            <geom type="mesh" mesh="sim_icub3_l_shoulder_1" contype="1" conaffinity="6"/>
+                            <body name="l_shoulder_2" pos="0.00499278 0.1115 0.000268609" quat="0.995835 -0.0871243 -0.0267684 -0.00234193">
+                                <inertial pos="0.0030428 0.000127861 -0.0363895" quat="0.690505 0.172471 0.173591 0.680678" mass="0.710897" diaginertia="0.000824034 0.000759429 0.00032135"/>
+                                <joint name="l_shoulder_roll" pos="0 0 0" axis="1 2.00441e-11 -1.13672e-10" range="0.20944 2.84489" actuatorfrcrange="-1000000000 1000000000" damping="2"/>
+                                <geom type="mesh" mesh="sim_icub3_l_shoulder_2" contype="1" conaffinity="6"/>
+                                <geom pos="-0.00435 0 -0.0543" quat="1 0 0 0" type="mesh" mesh="sim_icub3_l_shoulder_3" contype="1" conaffinity="6"/>
+                                <body name="l_upper_arm" pos="-0.00435 0 -0.0768" quat="1 0 5.68214e-11 1.00258e-11">
+                                    <inertial pos="0.00105483 0.00246625 -0.0505969" quat="0.648058 0.00187351 -0.037451 0.760667" mass="1.6756" diaginertia="0.00309566 0.00298995 0.00128264"/>
+                                    <joint name="l_shoulder_yaw" pos="0 0 0" axis="1.13613e-10 0 -1" range="-0.872665 1.39626" actuatorfrcrange="-1000000000 1000000000" damping="2"/>
+                                    <geom type="mesh" mesh="sim_icub3_l_upperarm" contype="1" conaffinity="6"/>
+                                    <body name="l_elbow_1" pos="0.01 -0.0015 -0.1237" quat="1 0 5.02885e-11 0">
+                                        <inertial pos="-0.0145554 0.0719794 -0.140616" quat="0.980951 0.194022 0.00795946 0.00531616" mass="2.952" diaginertia="0.0165795 0.0140648 0.0066052"/>
+                                        <joint name="l_elbow" pos="0 0 0" axis="0 -1 0" range="-0.0523599 1.309" actuatorfrcrange="-1000000000 1000000000" damping="2"/>
+                                        <geom type="mesh" mesh="sim_icub3_l_elbow_prosup" contype="1" conaffinity="6"/>
+                                        <geom pos="-0.015 0.0917105 -0.312002" quat="0 0.707107 -0.707107 0" type="mesh" mesh="sim_sea_l_arm_p250" contype="1" conaffinity="6"/>
+                                        <site name="l_arm_turbine" pos="-0.015 0.0917105 -0.312002" quat="0 0.707107 -0.707107 0"/>
+                                    </body>
+                                </body>
+                                <site name="l_arm_ft_fixed_joint" pos="-0.004349999999999996 -2.7755575615628914e-17 -0.0543" quat="-3.5206820122414e-17 0.707106781186548 -0.707106781186547 -1.2180242574596345e-16"/>
+                            </body>
+                        </body>
+                        <body name="r_shoulder_1" pos="-0.0208351 -0.0397423 0.105203" quat="0.983506 -0.125212 -0.0164845 0.129481">
+                            <inertial pos="0.000167511 -0.0872173 0.000450736" quat="0.702382 0.710369 -0.0335549 0.0301624" mass="0.81384" diaginertia="0.00109246 0.00106892 0.000321909"/>
+                            <joint name="r_shoulder_pitch" pos="0 0 0" axis="0 1 0" range="-3.05433 0.349066" actuatorfrcrange="-1000000000 1000000000" damping="2"/>
+                            <geom type="mesh" mesh="sim_icub3_r_shoulder_1" contype="4" conaffinity="3"/>
+                            <body name="r_shoulder_2" pos="0.00748917 -0.1115 0.000402914" quat="0.995835 0.0871243 -0.0267684 0.00234193">
+                                <inertial pos="0.000510389 -0.000143523 -0.0363895" quat="0.681297 0.172836 0.17121 0.690398" mass="0.710897" diaginertia="0.000822396 0.000758152 0.000320989"/>
+                                <joint name="r_shoulder_roll" pos="0 0 0" axis="-1 0 0" range="0.20944 2.84489" actuatorfrcrange="-1000000000 1000000000" damping="2"/>
+                                <geom type="mesh" mesh="sim_icub3_r_shoulder_2" contype="4" conaffinity="3"/>
+                                <geom pos="-0.00685 0 -0.0543" quat="1 0 0 0" type="mesh" mesh="sim_icub3_r_shoulder_3" contype="4" conaffinity="3"/>
+                                <body name="r_upper_arm" pos="-0.00685 0 -0.0768" quat="1 0 0 0">
+                                    <inertial pos="0.00104774 -0.00255925 -0.050653" quat="0.752021 -0.0387285 0.00429224 0.657986" mass="1.67729" diaginertia="0.00310054 0.0029883 0.0012749"/>
+                                    <joint name="r_shoulder_yaw" pos="0 0 0" axis="0 0 1" range="-0.872665 1.39626" actuatorfrcrange="-1000000000 1000000000" damping="2"/>
+                                    <geom type="mesh" mesh="sim_icub3_r_upperarm" contype="4" conaffinity="3"/>
+                                    <body name="r_elbow_1" pos="0.01 0.0015 -0.1237" quat="1 0 0 0">
+                                        <inertial pos="-0.0144974 -0.0725677 -0.140711" quat="0.980949 -0.194068 0.00819392 -0.00318253" mass="2.945" diaginertia="0.0165952 0.0140409 0.00664925"/>
+                                        <joint name="r_elbow" pos="0 0 0" axis="0 -1 0" range="-0.0523599 1.309" actuatorfrcrange="-1000000000 1000000000" damping="2"/>
+                                        <geom type="mesh" mesh="sim_icub3_r_elbow_prosup" contype="4" conaffinity="3"/>
+                                        <geom pos="-0.0149251 -0.0922796 -0.312002" quat="0 -0.793353 0.608761 0" type="mesh" mesh="sim_sea_r_arm_p250" contype="4" conaffinity="3"/>
+                                        <site name="r_arm_turbine" pos="-0.0149251 -0.0922796 -0.312002" quat="0 -0.793353 0.608761 0"/>
+                                    </body>
+                                </body>
+                                <site name="r_arm_ft_fixed_joint" pos="-0.006850000000000002 0 -0.05429999999999999" quat="1.1198934787918985e-16 0.707106781186547 0.707106781186548 -2.5393742255640415e-17"/>
+                            </body>
+                        </body>
+                        <body name="l_jet_roll" pos="0 0.0725 0.126638" quat="0.707107 0 0 -0.707107">
+                            <inertial pos="-0.165958 -0.129742 -0.00921369" quat="0.677253 0.214974 0.216688 0.669448" mass="2.8243" diaginertia="0.0120787 0.00933856 0.00611505"/>
+                            <joint name="left_jetpack_roll" pos="0 0 0" axis="0 -1 0" range="-0.7 0.35" actuatorfrcrange="-1000000000 1000000000" damping="2"/>
+                            <geom pos="0.0725 0 -0.01025" type="mesh" mesh="sim_sea_3_l_jet_roll" contype="1" conaffinity="6"/>
+                            <geom pos="-0.227201 -0.129711 -0.161175" quat="0.092296 -0.701057 -0.701057 0.092296" type="mesh" mesh="sim_sea_l_jet_turbine" contype="1" conaffinity="6"/>
+                            <site name="l_jet_turbine" pos="-0.227201 -0.129711 -0.161175" quat="0.092296 -0.701057 -0.701057 0.092296"/>
+                            <site name="l_jet_ft_fixed_joint" pos="0.07250000000000006 0 -0.010250000000000014" quat="1.0 0.0 0.0 0.0"/>
+                        </body>
+                        <body name="r_jet_roll" pos="0 -0.0725 0.126638" quat="0.707107 0 0 -0.707107">
+                            <inertial pos="0.166237 -0.129747 -0.0091412" quat="0.674328 -0.217541 -0.216019 0.671784" mass="2.82391" diaginertia="0.0120947 0.00934409 0.00612627"/>
+                            <joint name="right_jetpack_roll" pos="0 0 0" axis="0 -1 0" range="-0.35 0.7" actuatorfrcrange="-1000000000 1000000000" damping="2"/>
+                            <geom pos="-0.0725 0 -0.01025" type="mesh" mesh="sim_sea_3_r_jet_roll" contype="4" conaffinity="3"/>
+                            <geom pos="0.227684 -0.129711 -0.161046" quat="0.092296 0.701057 0.701057 0.092296" type="mesh" mesh="sim_sea_r_jet_turbine" contype="4" conaffinity="3"/>
+                            <site name="r_jet_turbine" pos="0.227684 -0.129711 -0.161046" quat="0.092296 0.701057 0.701057 0.092296"/>
+                            <site name="r_jet_ft_fixed_joint" pos="-0.07249999999999998 0 -0.010250000000000047" quat="1.0 0.0 0.0 0.0"/>
+                        </body>
+                        <body name="neck_2" pos="0.00486151 1.68784e-06 0.2143" quat="1 0 0 0">
+                            <inertial pos="-0.0063756 3.63093e-05 0.00659762" quat="0.960013 0.0068643 -0.279872 -0.000133887" mass="0.125549" diaginertia="5.34039e-05 4.05698e-05 3.26762e-05"/>
+                            <joint name="neck_pitch" pos="0 0 0" axis="0 -1 0" range="-0.523599 0.383972" actuatorfrcrange="-1000000000 1000000000" damping="2"/>
+                            <geom type="mesh" mesh="sim_head_neck_2" contype="2" conaffinity="5"/>
+                            <body name="neck_3" pos="0 0 0.0095" quat="1 0 0 0">
+                                <inertial pos="0.0012654 -8.21882e-05 0.0361093" quat="0.714222 -0.0528973 -0.0492244 0.696179" mass="0.190133" diaginertia="0.000123783 0.000112196 3.9776e-05"/>
+                                <joint name="neck_roll" pos="0 0 0" axis="1 0 0" range="-0.349066 0.349066" actuatorfrcrange="-1000000000 1000000000" damping="2"/>
+                                <geom type="mesh" mesh="sim_head_neck_3" contype="2" conaffinity="5"/>
+                                <body name="head" pos="0 0 0.06915" quat="1 0 0 0">
+                                    <inertial pos="-0.00107173 -0.00258185 0.021357" quat="0.438872 0.567808 0.360035 0.596121" mass="1.49298" diaginertia="0.00757608 0.00731897 0.0044854"/>
+                                    <joint name="neck_yaw" pos="0 0 0" axis="0 0 1" range="-0.785398 0.785398" actuatorfrcrange="-1000000000 1000000000" damping="2"/>
+                                    <geom type="mesh" mesh="sim_head_head" contype="2" conaffinity="5"/>
+                                    <site name="head_imu" pos="0.0035 0.0055 0.101334" quat="9.381839455653148e-07 0.707105482510614 -0.7071080798588513 -9.381873918002969e-07"/>
+                                </body>
+                            </body>
+                        </body>
+                        <site name="realsense_imu_fixed_joint" pos="0.17474 0.00874979 0.0477659" quat="0.6532814824381884 0.27059805007309856 -0.27059805007309856 -0.6532814824381883"/>
+                        <site name="chest_imu" pos="0.100122 0.00772565 0.081506" quat="0.00034258628702523385 -0.7071066969287677 0.0003477809828808075 -0.7071066969287676"/>
+                    </body>
+                </body>
+            </body>
+        </body>
+    </worldbody>
+    <actuator>
+        <position joint="l_hip_pitch" name="l_hip_pitch_motor" ctrlrange="-0.785398 2.00713" kp="1500" dampratio="0.12"/>
+        <position joint="l_hip_roll" name="l_hip_roll_motor" ctrlrange="-0.174533 1.95477" kp="1500" dampratio="0.12"/>
+        <position joint="l_hip_yaw" name="l_hip_yaw_motor" ctrlrange="-1.39626 1.39626" kp="1500" dampratio="0.12"/>
+        <position joint="l_knee" name="l_knee_motor" ctrlrange="-1.22173 0.0872665" kp="1500" dampratio="0.12"/>
+        <position joint="l_ankle_pitch" name="l_ankle_pitch_motor" ctrlrange="-0.785398 0.785398" kp="1500" dampratio="0.12"/>
+        <position joint="l_ankle_roll" name="l_ankle_roll_motor" ctrlrange="-0.436332 0.436332" kp="1500" dampratio="0.12"/>
+        <position joint="r_hip_pitch" name="r_hip_pitch_motor" ctrlrange="-0.785398 2.00713" kp="1500" dampratio="0.12"/>
+        <position joint="r_hip_roll" name="r_hip_roll_motor" ctrlrange="-0.174533 1.95477" kp="1500" dampratio="0.12"/>
+        <position joint="r_hip_yaw" name="r_hip_yaw_motor" ctrlrange="-1.39626 1.39626" kp="1500" dampratio="0.12"/>
+        <position joint="r_knee" name="r_knee_motor" ctrlrange="-1.22173 0.0872665" kp="1500" dampratio="0.12"/>
+        <position joint="r_ankle_pitch" name="r_ankle_pitch_motor" ctrlrange="-0.785398 0.785398" kp="1500" dampratio="0.12"/>
+        <position joint="r_ankle_roll" name="r_ankle_roll_motor" ctrlrange="-0.436332 0.436332" kp="1500" dampratio="0.12"/>
+        <position joint="torso_roll" name="torso_roll_motor" ctrlrange="-0.401426 0.401426" kp="1500" dampratio="0.12"/>
+        <position joint="torso_pitch" name="torso_pitch_motor" ctrlrange="-0.314159 0.785398" kp="1500" dampratio="0.12"/>
+        <position joint="torso_yaw" name="torso_yaw_motor" ctrlrange="-0.750492 0.750492" kp="1500" dampratio="0.12"/>
+        <position joint="l_shoulder_pitch" name="l_shoulder_pitch_motor" ctrlrange="-3.05433 0.349066" kp="1500" dampratio="0.12"/>
+        <position joint="l_shoulder_roll" name="l_shoulder_roll_motor" ctrlrange="0.20944 2.84489" kp="1500" dampratio="0.12"/>
+        <position joint="l_shoulder_yaw" name="l_shoulder_yaw_motor" ctrlrange="-0.872665 1.39626" kp="1500" dampratio="0.12"/>
+        <position joint="l_elbow" name="l_elbow_motor" ctrlrange="-0.0523599 1.309" kp="1500" dampratio="0.12"/>
+        <position joint="r_shoulder_pitch" name="r_shoulder_pitch_motor" ctrlrange="-3.05433 0.349066" kp="1500" dampratio="0.12"/>
+        <position joint="r_shoulder_roll" name="r_shoulder_roll_motor" ctrlrange="0.20944 2.84489" kp="1500" dampratio="0.12"/>
+        <position joint="r_shoulder_yaw" name="r_shoulder_yaw_motor" ctrlrange="-0.872665 1.39626" kp="1500" dampratio="0.12"/>
+        <position joint="r_elbow" name="r_elbow_motor" ctrlrange="-0.0523599 1.309" kp="1500" dampratio="0.12"/>
+        <position joint="left_jetpack_roll" name="left_jetpack_roll_motor" ctrlrange="-0.7 0.35" kp="1500" dampratio="0.12"/>
+        <position joint="right_jetpack_roll" name="right_jetpack_roll_motor" ctrlrange="-0.35 0.7" kp="1500" dampratio="0.12"/>
+        <position joint="neck_pitch" name="neck_pitch_motor" ctrlrange="-0.523599 0.383972" kp="1500" dampratio="0.12"/>
+        <position joint="neck_roll" name="neck_roll_motor" ctrlrange="-0.349066 0.349066" kp="1500" dampratio="0.12"/>
+        <position joint="neck_yaw" name="neck_yaw_motor" ctrlrange="-0.785398 0.785398" kp="1500" dampratio="0.12"/>
+        <motor gear="0 0 -1 0 0 0" site="l_arm_turbine" name="l_arm_jet_turbine" ctrlrange="0 250"/>
+        <motor gear="0 0 -1 0 0 0" site="r_arm_turbine" name="r_arm_jet_turbine" ctrlrange="0 250"/>
+        <motor gear="0 0 -1 0 0 0" site="l_jet_turbine" name="chest_l_jet_turbine" ctrlrange="0 250"/>
+        <motor gear="0 0 -1 0 0 0" site="r_jet_turbine" name="chest_r_jet_turbine" ctrlrange="0 250"/>
+    </actuator>
+    <sensor>
+        <force name="l_foot_front_ft_fixed_joint_force_sensor" site="l_foot_front_ft_fixed_joint"/>
+        <torque name="l_foot_front_ft_fixed_joint_torque_sensor" site="l_foot_front_ft_fixed_joint"/>
+        <force name="l_foot_rear_ft_fixed_joint_force_sensor" site="l_foot_rear_ft_fixed_joint"/>
+        <torque name="l_foot_rear_ft_fixed_joint_torque_sensor" site="l_foot_rear_ft_fixed_joint"/>
+        <force name="r_foot_front_ft_fixed_joint_force_sensor" site="r_foot_front_ft_fixed_joint"/>
+        <torque name="r_foot_front_ft_fixed_joint_torque_sensor" site="r_foot_front_ft_fixed_joint"/>
+        <force name="r_foot_rear_ft_fixed_joint_force_sensor" site="r_foot_rear_ft_fixed_joint"/>
+        <torque name="r_foot_rear_ft_fixed_joint_torque_sensor" site="r_foot_rear_ft_fixed_joint"/>
+        <force name="l_arm_ft_fixed_joint_force_sensor" site="l_arm_ft_fixed_joint"/>
+        <torque name="l_arm_ft_fixed_joint_torque_sensor" site="l_arm_ft_fixed_joint"/>
+        <force name="r_arm_ft_fixed_joint_force_sensor" site="r_arm_ft_fixed_joint"/>
+        <torque name="r_arm_ft_fixed_joint_torque_sensor" site="r_arm_ft_fixed_joint"/>
+        <force name="l_jet_ft_fixed_joint_force_sensor" site="l_jet_ft_fixed_joint"/>
+        <torque name="l_jet_ft_fixed_joint_torque_sensor" site="l_jet_ft_fixed_joint"/>
+        <force name="r_jet_ft_fixed_joint_force_sensor" site="r_jet_ft_fixed_joint"/>
+        <torque name="r_jet_ft_fixed_joint_torque_sensor" site="r_jet_ft_fixed_joint"/>
+        <accelerometer name="head_imu_acc_sensor" site="head_imu"/>
+        <gyro name="head_imu_gyro_sensor" site="head_imu"/>
+        <accelerometer name="realsense_imu_fixed_joint_acc_sensor" site="realsense_imu_fixed_joint"/>
+        <gyro name="realsense_imu_fixed_joint_gyro_sensor" site="realsense_imu_fixed_joint"/>
+        <accelerometer name="chest_imu_acc_sensor" site="chest_imu"/>
+        <gyro name="chest_imu_gyro_sensor" site="chest_imu"/>
+    </sensor>
+</mujoco>
