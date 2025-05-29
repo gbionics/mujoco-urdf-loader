@@ -52,7 +52,6 @@ class URDFtoMuJoCoLoader:
         self.set_controlled_joints(cfg.controlled_joints)
 
     @staticmethod
-    # def load_urdf(urdf_path: Path, joints: List[str], stiffness: List[float] = None, damping: List[float] = None):
     def load_urdf(urdf_path: str, cfg: URDFtoMuJoCoLoaderCfg):    
         """
         Load the URDF from the file.
