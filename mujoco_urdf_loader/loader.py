@@ -1,12 +1,10 @@
 import dataclasses
-import logging
 import tempfile
 import xml.etree.ElementTree as ET
 from enum import Enum
 from typing import List, Union
 
 import idyntree.bindings as idyn
-import resolve_robotics_uri_py as rru
 
 from mujoco_urdf_loader.generator import load_urdf_into_mjcf
 from mujoco_urdf_loader.mjcf_fcn import (
