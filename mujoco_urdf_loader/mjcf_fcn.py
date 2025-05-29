@@ -1,6 +1,7 @@
 import xml.etree.ElementTree as ET
 from typing import List
 import idyntree.swig as idyntree
+import numpy as np
 
 
 def add_new_worldbody(
@@ -364,7 +365,7 @@ def add_sphere(
 
 def add_sites_for_ft(mjcf: ET.Element, robot_urdf: ET.Element) -> ET.Element:
     for fixed_link in robot_urdf.findall(".//joint[@type='fixed']"):
-        if "_ft_sensor" not in fixed_link.attrib["name"]:
+        if "_ft_fixed" not in fixed_link.attrib["name"]:
             continue
 
         parent = fixed_link.find("parent").attrib["link"]
@@ -443,30 +444,146 @@ def add_sites_for_imu(mjcf: ET.Element, robot_urdf: ET.Element) -> ET.Element:
     return mjcf
 
 
-def add_sites_for_soles(mjcf: ET.Element, robot_urdf: ET.Element) -> ET.Element:
-    for fixed_link in robot_urdf.findall(".//joint[@type='fixed']"):
-        if "_sole_" not in fixed_link.attrib["name"]:
+def add_sites_to_body(
+    mjcf: ET.Element, urdf: ET.Element, parent_body: str, target_link: str
+) -> ET.Element:
+    """
+    Add frames to the specified body in the MJCF file based on the URDF joints.
+
+    Args:
+        mjcf (ET.Element): The MJCF file as ElementTree.
+        urdf (ET.Element): The URDF file as ElementTree.
+        parent_body (str): The name of the parent body in the MJCF.
+
+    Returns:
+        ET.Element: The modified MJCF file.
+    """
+
+    def transform_position(pos, rot, parent_pos, parent_rot):
+        transformed_pos = parent_rot * idyntree.Position(
+            pos[0], pos[1], pos[2]
+        ) + idyntree.Position(parent_pos[0], parent_pos[1], parent_pos[2])
+        return [transformed_pos.getVal(i) for i in range(3)]
+
+    def rpy_to_rotation(rpy):
+        return idyntree.Rotation.RPY(rpy[0], rpy[1], rpy[2])
+
+    def rotation_to_quaternion(rot):
+        quat = rot.asQuaternion()
+        return [quat.getVal(0), quat.getVal(1), quat.getVal(2), quat.getVal(3)]
+
+    # Find all fixed joints
+    fixed_joints = urdf.findall(".//joint[@type='fixed']")
+
+    # Build a dictionary of parent-child relationships
+    link_transformations = {}
+    for joint in fixed_joints:
+        origin = joint.find("origin")
+        if origin is None:
             continue
 
-        parent = fixed_link.find("parent").attrib["link"]
-        body = mjcf.find(f".//body[@name='{parent}']")
-        if body is None:
-            print(f"Body {parent} not found in mjcf")
-            continue
+        # Get the position and RPY values from the joint's origin
+        xyz = list(map(float, origin.attrib["xyz"].split()))
+        rpy = list(map(float, origin.attrib["rpy"].split()))
+        rot = rpy_to_rotation(rpy)
 
-        # Create <site> element
-        site = ET.SubElement(body, "site")
-        site.set(
-            "name",
-            fixed_link.attrib["name"],
-        )
-        site.set("pos", fixed_link.find("origin").attrib["xyz"])
-        rpy = list(map(float, fixed_link.find("origin").attrib["rpy"].split()))
-        rotation = idyntree.Rotation.RPY(rpy[0], rpy[1], rpy[2])
-        quaternion = rotation.asQuaternion()
-        print(quaternion)
+        # Store the transformation
+        parent = joint.find("parent").attrib["link"]
+        child = joint.find("child").attrib["link"]
+        link_transformations[child] = (xyz, rot, parent)
 
-        site.set(
-            "quat", f"{quaternion[0]} {quaternion[1]} {quaternion[2]} {quaternion[3]}"
-        )
+    # Function to compute the cumulative transformation for a link
+    def get_cumulative_transform(link):
+        pos = [0, 0, 0]
+        rot = idyntree.Rotation.Identity()
+        while link in link_transformations:
+            xyz, r, parent = link_transformations[link]
+            pos = transform_position(xyz, r, pos, rot)
+            rot = r * rot
+            link = parent
+        return pos, rot
+
+    # Add frames to the MJCF for links connected to l_foot_rear and having "sole" in their names
+    for child_link, (xyz, rot, parent_link) in link_transformations.items():
+        if "sole" in child_link and parent_link == target_link:
+            pos, final_rot = get_cumulative_transform(child_link)
+            quat = rotation_to_quaternion(final_rot)
+            quat_str = f"{quat[0]} {quat[1]} {quat[2]} {quat[3]}"
+            pos_str = f"{pos[0]} {pos[1]} {pos[2]}"
+
+            # Find the parent body in the MJCF
+            body = mjcf.find(f".//body[@name='{parent_body}']")
+            if body is None:
+                print(f"Body {parent_body} not found in MJCF")
+                continue
+
+            # Create the new frame (site) in the MJCF
+            site = ET.SubElement(body, "site")
+            site.set("name", child_link)
+            site.set("pos", pos_str)
+            site.set("quat", quat_str)
+
     return mjcf
+
+
+def add_sensors_to_sites(mjcf: ET.Element) -> ET.Element:
+    """
+    Add force-torque and IMU sensors to the specified sites in the MJCF file.
+
+    Args:
+        mjcf (ET.Element): The MJCF file as ElementTree.
+
+    Returns:
+        ET.Element: The modified MJCF file.
+    """
+    # Ensure the sensors element exists
+    if mjcf.find(".//sensor") is None:
+        sensors = ET.Element("sensor")
+        mjcf.append(sensors)
+    else:
+        sensors = mjcf.find(".//sensor")
+
+    # Find all sites with "fts" or "imu" in their names
+    sites = mjcf.findall(".//site")
+    for site in sites:
+        site_name = site.get("name")
+        if "_ft_" in site_name:
+            add_force_torque_sensors(sensors, site_name)
+        elif "_imu" in site_name:
+            add_imu_sensors(sensors, site_name)
+
+    return mjcf
+
+
+def add_force_torque_sensors(sensors: ET.Element, site_name: str) -> None:
+    """
+    Add force and torque sensors to a specific site.
+
+    Args:
+        sensors (ET.Element): The sensor element in the MJCF file.
+        site_name (str): The name of the site.
+    """
+    force_sensor = ET.SubElement(sensors, "force")
+    force_sensor.set("name", f"{site_name}_force_sensor")
+    force_sensor.set("site", site_name)
+
+    torque_sensor = ET.SubElement(sensors, "torque")
+    torque_sensor.set("name", f"{site_name}_torque_sensor")
+    torque_sensor.set("site", site_name)
+
+
+def add_imu_sensors(sensors: ET.Element, site_name: str) -> None:
+    """
+    Add accelerometer and gyroscope sensors to a specific site.
+
+    Args:
+        sensors (ET.Element): The sensor element in the MJCF file.
+        site_name (str): The name of the site.
+    """
+    accelerometer_sensor = ET.SubElement(sensors, "accelerometer")
+    accelerometer_sensor.set("name", f"{site_name}_acc_sensor")
+    accelerometer_sensor.set("site", site_name)
+
+    gyroscope_sensor = ET.SubElement(sensors, "gyro")
+    gyroscope_sensor.set("name", f"{site_name}_gyro_sensor")
+    gyroscope_sensor.set("site", site_name)
