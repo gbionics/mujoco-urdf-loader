@@ -82,7 +82,7 @@ def add_position_actuator(
     # create the position actuator
     motor = ET.SubElement(actuators, "position")
     motor.set("joint", joint)
-    motor.set("name", name if name is not None else f"{joint}_motor")
+    motor.set("name", name if name is not None else f"{joint}_position_motor")
     motor.set("ctrlrange", f"{ctrlrange[0]} {ctrlrange[1]}")
     motor.set("kp", str(kp))
     motor.set("dampratio", str(dampratio))
