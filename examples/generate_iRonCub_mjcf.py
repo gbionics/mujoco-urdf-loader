@@ -53,9 +53,6 @@ mesh_path = os.path.join(
 # remove the gazebo elements
 robot_urdf = remove_gazebo_elements(robot_urdf)
 
-# add the mujoco element
-robot_urdf = add_mujoco_element(robot_urdf, mesh_path)
-
 
 controlled_joints = [
     "l_hip_pitch",
