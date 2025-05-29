@@ -7,7 +7,8 @@ import numpy as np
 import os
 import subprocess
 import idyntree.swig as idyntree
-from mujoco_urdf_loader.generator import load_urdf_into_mjcf
+import mujoco_urdf_loader.generator as generator
+import mujoco_urdf_loader.loader as loader
 
 from mujoco_urdf_loader.mjcf_fcn import (
     add_camera,
@@ -104,60 +105,62 @@ def validate_and_fix_inertia(mjcf: ET.Element):
 
 
 # Apply inertia validation to the entire MJCF model
-validate_and_fix_inertia(robot_urdf)
+# validate_and_fix_inertia(robot_urdf)
 
+controlled_joints = [
+    "l_hip_pitch",
+    "l_hip_roll",
+    "l_hip_yaw",
+    "l_knee",
+    "l_ankle_pitch",
+    "l_ankle_roll",
+    "r_hip_pitch",
+    "r_hip_roll",
+    "r_hip_yaw",
+    "r_knee",
+    "r_ankle_pitch",
+    "r_ankle_roll",
+    "torso_roll",
+    "torso_pitch",
+    "torso_yaw",
+    "l_shoulder_pitch",
+    "l_shoulder_roll",
+    "l_shoulder_yaw",
+    "l_elbow",
+    "r_shoulder_pitch",
+    "r_shoulder_roll",
+    "r_shoulder_yaw",
+    "r_elbow",
+    "neck_pitch",
+    "neck_roll",
+    "neck_yaw",
+]
 
-# def fix_specific_element_inertia(mjcf: ET.Element, element_name: str):
-#     """
-#     Apply default inertia to a specific element by name.
+control_modes = [loader.ControlMode.POSITION] * len(controlled_joints)
+stiffness = [0.0] * len(controlled_joints)
+damping = [0.0] * len(controlled_joints)
 
-#     Args:
-#         mjcf (ET.Element): The MJCF file as ElementTree.
-#         element_name (str): The name of the element to fix.
-#     """
-#     default_inertia = {
-#         "ixx": "0.01",
-#         "iyy": "0.01",
-#         "izz": "0.01",
-#         "ixy": "0.0",
-#         "ixz": "0.0",
-#         "iyz": "0.0",
-#     }
-
-#     # Find the element by name
-#     inertial = mjcf.find(f".//body[@name='{element_name}']/inertial")
-#     if inertial is not None:
-#         inertia = inertial.find("inertia")
-#         if inertia is None:
-#             ET.SubElement(inertial, "inertia", attrib=default_inertia)
-#             print(f"Added default inertia to {element_name}.")
-#         else:
-#             inertia.attrib.update(default_inertia)
-#             print(f"Replaced inertia for {element_name}.")
-#     else:
-#         print(f"Element {element_name} not found in the MJCF.")
-
-
-# fix_specific_element_inertia(robot_urdf, "chest_r_bracket")
-# Add the balanceinertia attribute to the compiler element
+cfg = loader.URDFtoMuJoCoLoaderCfg(controlled_joints, control_modes, stiffness, damping)
 mjcf_root = ET.Element("mujoco", attrib={"model": "icub"})
 compiler = ET.SubElement(mjcf_root, "compiler", attrib={"balanceinertia": "true"})
 
-mjcf = load_urdf_into_mjcf(robot_urdf)
+loader = loader.URDFtoMuJoCoLoader.load_urdf(robot_path, mesh_relative_path, cfg)
+mjcf = loader.mjcf
+
 
 # create a new worldbody, add the robot to it and remove the old worldbody
-add_new_worldbody(mjcf, freeze_root=False)
+# add_new_worldbody(mjcf, freeze_root=False)
 
-for joint in mjcf.findall(".//body/joint"):
-    ctrlrange = joint.attrib["range"]
-    add_position_actuator(
-        mjcf,
-        joint=joint.attrib["name"],
-        ctrlrange=[float(ctrlrange.split()[0]), float(ctrlrange.split()[1])],
-        kp=1500,
-        dampratio=0.12,
-        name=joint.attrib["name"],
-    )
+# for joint in mjcf.findall(".//body/joint"):
+#     ctrlrange = list(map(float, joint.attrib["range"].split()))
+#     add_position_actuator(
+#         mjcf,
+#         joint=joint.attrib["name"],
+#         ctrlrange=[float(ctrlrange.split()[0]), float(ctrlrange.split()[1])],
+#         kp=1500,
+#         dampratio=0.12,
+#         name=joint.attrib["name"],
+#     )
 
 # Set the damping
 set_joint_damping(mjcf, damping=2)
