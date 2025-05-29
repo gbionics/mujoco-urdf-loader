@@ -15,6 +15,8 @@ from mujoco_urdf_loader.mjcf_fcn import (
     add_position_actuator,
     separate_left_right_collision_groups,
     set_joint_damping,
+    add_sites_for_ft,
+    add_sites_for_imu,
 )
 from mujoco_urdf_loader.urdf_fcn import (
     add_mujoco_element,
@@ -65,8 +67,53 @@ for joint in mjcf.findall(".//body/joint"):
 
 # set the damping
 set_joint_damping(mjcf, damping=2)
-# set_joint_damping(mjcf, subset=hand_elements, damping=0.005)
 
+
+# set_joint_damping(mjcf, subset=hand_elements, damping=0.005)
+# # add sites for turbines
+def add_sites_turbines(
+    mjcf: ET.Element, body_name: str, geom_mesh: str, name: str = None
+) -> ET.Element:
+    """Add sites to specific bodies in the mjcf file.
+
+    Args:
+        mjcf (ET.Element): The mjcf file as ElementTree.
+        body_name (str): The name of the body to add the site to.
+        geom_type (str): The type of the geom to add the site to.
+        name (str): The name of the site (default: f"{geom_type}_site").
+
+    Returns:
+        ET.Element: The modified mjcf file.
+    """
+    for body in mjcf.findall(f".//body[@name='{body_name}']"):
+        # Iterate through <geom> elements within the specific <body>
+        for geom in body.findall("geom"):
+            if geom.attrib.get("mesh") == geom_mesh:
+                geom_pos = geom.attrib.get("pos", "")
+                geom_quat = geom.attrib.get("quat", "")
+
+                # Create <site> element
+                site = ET.SubElement(body, "site")
+                site.set(
+                    "name",
+                    name if name is not None else f"{geom.attrib.get('mesh')}_site",
+                )
+                site.set("pos", geom_pos)
+                site.set("quat", geom_quat)
+
+    return mjcf
+
+
+add_sites_turbines(mjcf, "chest", "sim_sea_l_jet_turbine", "l_jet_turbine")
+add_sites_turbines(mjcf, "chest", "sim_sea_r_jet_turbine", "r_jet_turbine")
+add_sites_turbines(mjcf, "l_elbow_1", "sim_sea_l_arm_p250", "l_arm_turbine")
+add_sites_turbines(mjcf, "r_elbow_1", "sim_sea_r_arm_p250", "r_arm_turbine")
+
+
+# add sites for the  ft
+add_sites_for_ft(mjcf, robot_urdf)
+# add sites for the imu
+add_sites_for_imu(mjcf, robot_urdf)
 # add camera to the robot
 for body in mjcf.findall(".//body"):
     if "realsense" in body.attrib["name"]:
