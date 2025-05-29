@@ -53,7 +53,7 @@ class URDFtoMuJoCoLoader:
         self.set_controlled_joints(cfg.controlled_joints)
 
     @staticmethod
-    def load_urdf(urdf_path: str, cfg: URDFtoMuJoCoLoaderCfg):    
+    def load_urdf(urdf_path: str, mesh_path: str, cfg: URDFtoMuJoCoLoaderCfg):
         """
         Load the URDF from the file.
 
@@ -65,7 +65,6 @@ class URDFtoMuJoCoLoader:
             str: The URDF string.
         """
         urdf_string = URDFtoMuJoCoLoader.simplify_urdf(urdf_path, cfg.controlled_joints, cfg.stiffness, cfg.damping)
-        mesh_path = get_mesh_path(urdf_string)
         urdf_string = remove_gazebo_elements(urdf_string)
         urdf_string = add_mujoco_element(urdf_string, mesh_path)
         mjcf = load_urdf_into_mjcf(urdf_string)
