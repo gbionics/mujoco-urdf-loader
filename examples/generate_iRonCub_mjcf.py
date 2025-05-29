@@ -17,7 +17,8 @@ from mujoco_urdf_loader.mjcf_fcn import (
     set_joint_damping,
     add_sites_for_ft,
     add_sites_for_imu,
-    add_sites_for_soles,
+    add_sites_to_body,
+    add_sensors_to_sites,
 )
 from mujoco_urdf_loader.urdf_fcn import (
     add_mujoco_element,
@@ -113,10 +114,101 @@ add_sites_turbines(mjcf, "r_elbow_1", "sim_sea_r_arm_p250", "r_arm_turbine")
 
 # add sites for the  ft
 add_sites_for_ft(mjcf, robot_urdf)
+
+
+def add_ft_sites_to_chest(
+    mjcf: ET.Element, urdf: ET.Element, parent_body: str
+) -> ET.Element:
+    """
+    Add frames to the specified body in the MJCF file based on the URDF joints.
+
+    Args:
+        mjcf (ET.Element): The MJCF file as ElementTree.
+        urdf (ET.Element): The URDF file as ElementTree.
+        parent_body (str): The name of the parent body in the MJCF.
+
+    Returns:
+        ET.Element: The modified MJCF file.
+    """
+
+    def transform_position(pos, rot, parent_pos, parent_rot):
+        transformed_pos = parent_rot * idyntree.Position(
+            pos[0], pos[1], pos[2]
+        ) + idyntree.Position(parent_pos[0], parent_pos[1], parent_pos[2])
+        return [transformed_pos.getVal(i) for i in range(3)]
+
+    def rpy_to_rotation(rpy):
+        return idyntree.Rotation.RPY(rpy[0], rpy[1], rpy[2])
+
+    def rotation_to_quaternion(rot):
+        quat = rot.asQuaternion()
+        return [quat.getVal(0), quat.getVal(1), quat.getVal(2), quat.getVal(3)]
+
+    # Find all fixed joints
+    fixed_joints = urdf.findall(".//joint[@type='fixed']")
+
+    # Build a dictionary of parent-child relationships
+    link_transformations = {}
+    for joint in fixed_joints:
+        origin = joint.find("origin")
+        if origin is None:
+            continue
+
+        # Get the position and RPY values from the joint's origin
+        xyz = list(map(float, origin.attrib["xyz"].split()))
+        rpy = list(map(float, origin.attrib["rpy"].split()))
+        rot = rpy_to_rotation(rpy)
+
+        # Store the transformation
+        parent = joint.find("parent").attrib["link"]
+        child = joint.find("child").attrib["link"]
+        link_transformations[child] = (xyz, rot, parent)
+
+    # Function to compute the cumulative transformation for a link
+    def get_cumulative_transform(link):
+        pos = [0, 0, 0]
+        rot = idyntree.Rotation.Identity()
+        while link in link_transformations:
+            xyz, r, parent = link_transformations[link]
+            pos = transform_position(xyz, r, pos, rot)
+            rot = r * rot
+            link = parent
+        return pos, rot
+
+    # Add frames to the MJCF for links connected to l_foot_rear and having "sole" in their names
+    for child_link, (xyz, rot, parent_link) in link_transformations.items():
+        if "r_jet_ft" in child_link and parent_link == "chest_jetpack":
+            pos, final_rot = get_cumulative_transform(child_link)
+            quat = rotation_to_quaternion(final_rot)
+            quat_str = f"{quat[0]} {quat[1]} {quat[2]} {quat[3]}"
+            pos_str = f"{pos[0]} {pos[1]} {pos[2]}"
+
+            # Find the parent body in the MJCF
+            body = mjcf.find(f".//body[@name='{parent_body}']")
+            if body is None:
+                print(f"Body {parent_body} not found in MJCF")
+                continue
+
+            # Create the new frame (site) in the MJCF
+            site = ET.SubElement(body, "site")
+            site.set("name", child_link)
+            site.set("pos", pos_str)
+            site.set("quat", quat_str)
+
+    return mjcf
+
+
+add_ft_sites_to_chest(mjcf, robot_urdf, "chest")
+
 # add sites for the imu
 add_sites_for_imu(mjcf, robot_urdf)
 # add sites for soles
-add_sites_for_soles(mjcf, robot_urdf)
+add_sites_to_body(mjcf, robot_urdf, "l_ankle_2", "l_foot_rear")
+add_sites_to_body(mjcf, robot_urdf, "r_ankle_2", "r_foot_rear")
+add_sites_to_body(mjcf, robot_urdf, "l_ankle_2", "l_foot_front")
+add_sites_to_body(mjcf, robot_urdf, "r_ankle_2", "r_foot_front")
+# add sensors to the robot
+add_sensors_to_sites(mjcf)
 # add camera to the robot
 for body in mjcf.findall(".//body"):
     if "realsense" in body.attrib["name"]:
