@@ -87,3 +87,4 @@ class MujocoWrapper:
             np.ndarray: The base velocity (linear and angular).
         """
         return self.data.qvel[:6]
+    
