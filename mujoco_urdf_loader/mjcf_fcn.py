@@ -125,7 +125,7 @@ def add_torque_actuator(
 
     # create the torque actuator
     motor = ET.SubElement(actuators, "motor")
-    motor.set("name", name if name is not None else f"{joint}_torque_motor")
+    motor.set("name", name if name is not None else f"{joint}")
     motor.set("joint", joint)
     motor.set("ctrlrange", f"{ctrlrange[0]} {ctrlrange[1]}")
     motor.set("gear", "1")
