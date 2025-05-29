@@ -33,7 +33,7 @@ class URDFtoMuJoCoLoaderCfg:
     control_modes: Union[None, List[ControlMode]] = None
     stiffness: Union[None, List[float]] = None
     damping: Union[None, List[float]] = None
-    
+
 
 class URDFtoMuJoCoLoader:
     def __init__(self, mjcf: str, cfg: URDFtoMuJoCoLoaderCfg):
@@ -151,6 +151,7 @@ class URDFtoMuJoCoLoader:
         # Add a link called "world"
         world_link = ET.Element("link", attrib={"name": "world"})
         root.insert(0, world_link)
+
     def set_control_mode(self, joint: Union[str, List[str]], mode: ControlMode):
         """
         Set the control mode for the joint.
@@ -194,7 +195,7 @@ class URDFtoMuJoCoLoader:
         """
         self.controlled_joints = joints
         joint_elements = {joint.attrib["name"]: joint for joint in self.mjcf.findall(".//joint")}
-        
+
         for controlled_joint in self.controlled_joints:
             joint_element = joint_elements.get(controlled_joint)
             if joint_element is not None:
@@ -211,7 +212,7 @@ class URDFtoMuJoCoLoader:
             str: The Mujoco XML string.
         """
         return self.mjcf
-    
+
     def get_mjcf_string(self):
         """
         Get the Mujoco XML string.
@@ -220,4 +221,3 @@ class URDFtoMuJoCoLoader:
             str: The Mujoco XML string.
         """
         return ET.tostring(self.mjcf, encoding="unicode", method="xml")
-    
