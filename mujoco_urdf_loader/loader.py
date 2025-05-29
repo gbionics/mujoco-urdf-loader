@@ -135,20 +135,21 @@ class URDFtoMuJoCoLoader:
         parent_links = {joint.find("parent").attrib["link"] for joint in joints}
         # The root link is a parent link that is not a child link
         root_link = next(link for link in links if link not in child_links)
+        # Find the joint that has the root link as parent
+        fixed_joint_found = False
+        for joint in joints:
+            parent_link = joint.find("parent").attrib["link"]
+            if parent_link == root_link:
+                # Check if the joint is fixed
+                if joint.attrib["type"] == "fixed":
+                    # Change the joint type to floating
+                    joint.attrib["type"] = "floating"
+                    print(f"Modified joint {joint.attrib['name']} to type floating.")
+                    fixed_joint_found = True
+                break
 
-        # Add a floating joint that connects the root link to the world
-        floating_joint = ET.Element("joint", attrib={
-            "name": f"{root_link}_floating_joint",
-            "type": "floating"
-        })
-        # Populate the floating joint
-        parent_element = ET.SubElement(floating_joint, "parent", attrib={"link": "world"})
-        child_element = ET.SubElement(floating_joint, "child", attrib={"link": root_link})
-        # Add the floating joint to the urdf root
-        root.insert(0, floating_joint)
-        # Add a link called "world"
-        world_link = ET.Element("link", attrib={"name": "world"})
-        root.insert(0, world_link)
+        if not fixed_joint_found:
+            raise ValueError("No fixed joint found that can be modified to floating.")
 
     def set_control_mode(self, joint: Union[str, List[str]], mode: ControlMode):
         """
