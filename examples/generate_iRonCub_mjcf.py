@@ -6,7 +6,7 @@ import mujoco.viewer
 import numpy as np
 import os
 import subprocess
-
+import idyntree.swig as idyntree
 from mujoco_urdf_loader.generator import load_urdf_into_mjcf
 
 from mujoco_urdf_loader.mjcf_fcn import (
@@ -17,6 +17,7 @@ from mujoco_urdf_loader.mjcf_fcn import (
     set_joint_damping,
     add_sites_for_ft,
     add_sites_for_imu,
+    add_sites_for_soles,
 )
 from mujoco_urdf_loader.urdf_fcn import (
     add_mujoco_element,
@@ -114,6 +115,8 @@ add_sites_turbines(mjcf, "r_elbow_1", "sim_sea_r_arm_p250", "r_arm_turbine")
 add_sites_for_ft(mjcf, robot_urdf)
 # add sites for the imu
 add_sites_for_imu(mjcf, robot_urdf)
+# add sites for soles
+add_sites_for_soles(mjcf, robot_urdf)
 # add camera to the robot
 for body in mjcf.findall(".//body"):
     if "realsense" in body.attrib["name"]:
