@@ -20,6 +20,7 @@ from mujoco_urdf_loader.mjcf_fcn import (
     add_sites_to_body,
     add_sensors_to_sites,
 )
+
 from mujoco_urdf_loader.urdf_fcn import (
     add_mujoco_element,
     get_mesh_path,
@@ -27,11 +28,11 @@ from mujoco_urdf_loader.urdf_fcn import (
     remove_gazebo_elements,
 )
 
-
 ### make sure you run this in your terminal before you launch the python script otherwise this doesnot work
 #  call <path\to\ironcub_ws\>\install\local_setup.bat
 # Print the value of the environment variable
-package = os.getenv("IRONCUB_COMPONENT_SOURCE_DIR")
+# package = os.getenv("IRONCUB_COMPONENT_SOURCE_DIR")
+package = "C:/Users/pvanteddu/Documents/iRonCub_ws/src/component_ironcub"
 # Load the robot urdf
 robot_relative_path = "models/iRonCub-Mk3/iRonCub/robots/iRonCub-Mk3/model.urdf"
 robot_path = os.path.join(package, robot_relative_path)
@@ -116,6 +117,60 @@ add_sites_turbines(mjcf, "r_elbow_1", "sim_sea_r_arm_p250", "r_arm_turbine")
 add_sites_for_ft(mjcf, robot_urdf)
 
 
+def add_jet_turbine_motors(mjcf: ET.Element) -> ET.Element:
+    """
+    Add motor actuators for jet turbines to the MJCF file.
+
+    Args:
+        mjcf (ET.Element): The MJCF file as ElementTree.
+
+    Returns:
+        ET.Element: The modified MJCF file with added motors.
+    """
+    # Find or create the <actuator> element
+    actuator = mjcf.find("actuator")
+    if actuator is None:
+        actuator = ET.SubElement(mjcf, "actuator")
+
+    # Define the motors to add
+    motors = [
+        {
+            "gear": "0 0 -1 0 0 0",
+            "site": "l_arm_turbine",
+            "name": "l_arm_jet_turbine",
+            "ctrlrange": "0 250",
+        },
+        {
+            "gear": "0 0 -1 0 0 0",
+            "site": "r_arm_turbine",
+            "name": "r_arm_jet_turbine",
+            "ctrlrange": "0 250",
+        },
+        {
+            "gear": "0 0 -1 0 0 0",
+            "site": "l_jet_turbine",
+            "name": "chest_l_jet_turbine",
+            "ctrlrange": "0 250",
+        },
+        {
+            "gear": "0 0 -1 0 0 0",
+            "site": "r_jet_turbine",
+            "name": "chest_r_jet_turbine",
+            "ctrlrange": "0 250",
+        },
+    ]
+
+    # Add each motor to the <actuator> block
+    for motor in motors:
+        motor_elem = ET.SubElement(actuator, "motor")
+        motor_elem.set("gear", motor["gear"])
+        motor_elem.set("site", motor["site"])
+        motor_elem.set("name", motor["name"])
+        motor_elem.set("ctrlrange", motor["ctrlrange"])
+
+    return mjcf
+
+
 def add_ft_sites_to_chest(
     mjcf: ET.Element, urdf: ET.Element, parent_body: str
 ) -> ET.Element:
@@ -177,7 +232,7 @@ def add_ft_sites_to_chest(
 
     # Add frames to the MJCF for links connected to l_foot_rear and having "sole" in their names
     for child_link, (xyz, rot, parent_link) in link_transformations.items():
-        if "r_jet_ft" in child_link and parent_link == "chest_jetpack":
+        if "r_jet_ft" in child_link and parent_link == "chest":
             pos, final_rot = get_cumulative_transform(child_link)
             quat = rotation_to_quaternion(final_rot)
             quat_str = f"{quat[0]} {quat[1]} {quat[2]} {quat[3]}"
@@ -198,6 +253,24 @@ def add_ft_sites_to_chest(
     return mjcf
 
 
+# Function to format XML
+def format_xml(mjcf: ET.Element) -> str:
+    """
+    Formats an XML ElementTree into a human-readable string with proper indentation.
+
+    Args:
+        mjcf (ET.Element): The XML ElementTree.
+
+    Returns:
+        str: The formatted XML string.
+    """
+    from xml.dom import minidom
+
+    xml_pretty = minidom.parseString(ET.tostring(mjcf)).toprettyxml(indent="    ")
+    return "\n".join(line for line in xml_pretty.splitlines() if line.strip())
+
+
+add_jet_turbine_motors(mjcf)
 add_ft_sites_to_chest(mjcf, robot_urdf, "chest")
 
 # add sites for the imu
@@ -221,16 +294,17 @@ separate_left_right_collision_groups(mjcf)
 mjmodel_str = ET.tostring(mjcf, encoding="unicode", method="xml")
 # print(mjmodel_str)
 
-# save the model
+# Save the formatted model
 with open("iRonCub.xml", "w") as f:
-    f.write(mjmodel_str)
+    formatted_xml = format_xml(mjcf)
+    f.write(formatted_xml)
 
-# save the model to a temporary file
+# Save the model to a temporary file
 path_temp_xml = tempfile.NamedTemporaryFile(mode="w+", delete=False)
 with open(path_temp_xml.name, "w") as f:
-    f.write(mjmodel_str)
+    f.write(formatted_xml)
 
-# include the model in a simple world
+# Include the model in a simple world
 world_str = f"""
 <mujoco model="iRonCubCubWorld">
     <include file="{path_temp_xml.name}"/>
@@ -255,8 +329,6 @@ world_str = f"""
     </worldbody>
 </mujoco>
 """
-# print(world_str)
-
 
 # Load the model in mujoco and visualize it
 model = mujoco.MjModel.from_xml_string(world_str)
