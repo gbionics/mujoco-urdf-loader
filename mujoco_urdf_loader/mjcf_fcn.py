@@ -1,5 +1,6 @@
 import xml.etree.ElementTree as ET
 from typing import List
+import idyntree.swig as idyntree
 
 
 def add_new_worldbody(
@@ -379,7 +380,14 @@ def add_sites_for_ft(mjcf: ET.Element, robot_urdf: ET.Element) -> ET.Element:
             fixed_link.attrib["name"],
         )
         site.set("pos", fixed_link.find("origin").attrib["xyz"])
-        site.set("euler", fixed_link.find("origin").attrib["rpy"])
+        rpy = list(map(float, fixed_link.find("origin").attrib["rpy"].split()))
+        rotation = idyntree.Rotation.RPY(rpy[0], rpy[1], rpy[2])
+        quaternion = rotation.asQuaternion()
+        print(quaternion)
+
+        site.set(
+            "quat", f"{quaternion[0]} {quaternion[1]} {quaternion[2]} {quaternion[3]}"
+        )
     return mjcf
 
 
@@ -401,7 +409,15 @@ def add_sites_for_imu(mjcf: ET.Element, robot_urdf: ET.Element) -> ET.Element:
             fixed_link.attrib["name"],
         )
         site.set("pos", fixed_link.find("origin").attrib["xyz"])
-        site.set("euler", fixed_link.find("origin").attrib["rpy"])
+        rpy = list(map(float, fixed_link.find("origin").attrib["rpy"].split()))
+        rotation = idyntree.Rotation.RPY(rpy[0], rpy[1], rpy[2])
+        quaternion = rotation.asQuaternion()
+        print(quaternion)
+
+        site.set(
+            "quat", f"{quaternion[0]} {quaternion[1]} {quaternion[2]} {quaternion[3]}"
+        )
+
     for sensor in robot_urdf.findall(".//sensor[@type='accelerometer']"):
         parent = sensor.find("parent").attrib["link"]
         body = mjcf.find(f".//body[@name='{parent}']")
@@ -416,5 +432,41 @@ def add_sites_for_imu(mjcf: ET.Element, robot_urdf: ET.Element) -> ET.Element:
             sensor.attrib["name"],
         )
         site.set("pos", sensor.find("origin").attrib["xyz"])
-        site.set("euler", sensor.find("origin").attrib["rpy"])
+        rpy = list(map(float, sensor.find("origin").attrib["rpy"].split()))
+        rotation = idyntree.Rotation.RPY(rpy[0], rpy[1], rpy[2])
+        quaternion = rotation.asQuaternion()
+        print(quaternion)
+
+        site.set(
+            "quat", f"{quaternion[0]} {quaternion[1]} {quaternion[2]} {quaternion[3]}"
+        )
+    return mjcf
+
+
+def add_sites_for_soles(mjcf: ET.Element, robot_urdf: ET.Element) -> ET.Element:
+    for fixed_link in robot_urdf.findall(".//joint[@type='fixed']"):
+        if "_sole_" not in fixed_link.attrib["name"]:
+            continue
+
+        parent = fixed_link.find("parent").attrib["link"]
+        body = mjcf.find(f".//body[@name='{parent}']")
+        if body is None:
+            print(f"Body {parent} not found in mjcf")
+            continue
+
+        # Create <site> element
+        site = ET.SubElement(body, "site")
+        site.set(
+            "name",
+            fixed_link.attrib["name"],
+        )
+        site.set("pos", fixed_link.find("origin").attrib["xyz"])
+        rpy = list(map(float, fixed_link.find("origin").attrib["rpy"].split()))
+        rotation = idyntree.Rotation.RPY(rpy[0], rpy[1], rpy[2])
+        quaternion = rotation.asQuaternion()
+        print(quaternion)
+
+        site.set(
+            "quat", f"{quaternion[0]} {quaternion[1]} {quaternion[2]} {quaternion[3]}"
+        )
     return mjcf
