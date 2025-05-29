@@ -7,3 +7,4 @@ dependencies:
   - mujoco-samples
   - pytest
   - resolve-robotics-uri-py
+  - idyntree
