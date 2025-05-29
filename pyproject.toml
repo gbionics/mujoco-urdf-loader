@@ -24,7 +24,7 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Physics",
 ]
 requires-python = ">= 3.10"
-dependencies = ["mujoco", "resolve-robotics-uri-py"]
+dependencies = ["mujoco", "resolve-robotics-uri-py", "idyntree"]
 
 [project.readme]
 file = "README.md"
@@ -38,6 +38,8 @@ development = ["black", "isort", "pre-commit"]
 testing = ["pytest >= 6.0"]
 all = ["mujoco-urdf-loader[development,testing]"]
 
+# [tool.setuptools]
+# package-dir = { "" = "src" }
 
 [tool.setuptools.package-data]
 mujoco_urdf_loader = ["*.yaml", "*.urdf"]
