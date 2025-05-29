@@ -32,47 +32,206 @@ from mujoco_urdf_loader.urdf_fcn import (
 #  call <path\to\ironcub_ws\>\install\local_setup.bat
 # Print the value of the environment variable
 # package = os.getenv("IRONCUB_COMPONENT_SOURCE_DIR")
-package = "C:/Users/pvanteddu/Documents/iRonCub_ws/src/component_ironcub"
-# Load the robot urdf
-robot_relative_path = "models/iRonCub-Mk3/iRonCub/robots/iRonCub-Mk3/model.urdf"
-robot_path = os.path.join(package, robot_relative_path)
+# package = "C:/Users/pvanteddu/Documents/iRonCub_ws/src/component_ironcub"
+# # Load the robot urdf
+# robot_relative_path = "models/iRonCub-Mk3/iRonCub/robots/iRonCub-Mk3/model.urdf"
+robot_path = "C:/Users/pvanteddu/Documents/iRonCub_ws/src/component_ironcub/models/iRonCub-Mk3/iRonCub/robots/iRonCub-Mk3_Gazebo/model.urdf"
 
+# robot_urdf = ET.parse(robot_path).getroot()
 robot_urdf = get_robot_urdf(robot_path)
 # find the mesh path
-mesh_relative_path = "models/iRonCub-Mk3/iRonCub/meshes/obj"
+mesh_relative_path = "C:/Users/pvanteddu/Documents/iRonCub_ws/src/component_ironcub/models/iRonCub-Mk3/iRonCub/meshes/obj"
 
-mesh_path = os.path.join(package, mesh_relative_path)
+# mesh_path = "C:/Users/pvanteddu/Documents/GitHub/paper_vanteddu_2024_iros_cogenerative_cad/meshes"
 
 # remove the gazebo elements
-# robot_urdf = remove_gazebo_elements(robot_urdf)
+robot_urdf = remove_gazebo_elements(robot_urdf)
 
 # add the mujoco element
-robot_urdf = add_mujoco_element(robot_urdf, mesh_path)
+robot_urdf = add_mujoco_element(robot_urdf, mesh_relative_path)
 
-# Load the converted model to add the actuators, sensors and constraints
+
+def validate_and_fix_inertia(mjcf: ET.Element):
+    """
+    Traverse all <inertial> elements in the MJCF and fix invalid inertia values.
+
+    Args:
+        mjcf (ET.Element): The MJCF file as ElementTree.
+    """
+    default_inertia = {
+        "ixx": 0.01,
+        "iyy": 0.01,
+        "izz": 0.01,
+        "ixy": 0.0,
+        "ixz": 0.0,
+        "iyz": 0.0,
+    }
+
+    for inertial in mjcf.findall(".//inertial"):
+        inertia = inertial.find("inertia")
+        if inertia is None:
+            # Add default inertia if missing
+            ET.SubElement(
+                inertial,
+                "inertia",
+                attrib={key: str(value) for key, value in default_inertia.items()},
+            )
+            print("Added default inertia to missing <inertia> element.")
+        else:
+            # Validate and fix existing inertia values
+            ixx = float(inertia.attrib.get("ixx", "0"))
+            iyy = float(inertia.attrib.get("iyy", "0"))
+            izz = float(inertia.attrib.get("izz", "0"))
+            ixy = float(inertia.attrib.get("ixy", "0"))
+            ixz = float(inertia.attrib.get("ixz", "0"))
+            iyz = float(inertia.attrib.get("iyz", "0"))
+
+            if (
+                ixx <= 0
+                or iyy <= 0
+                or izz <= 0
+                or ixx + iyy <= izz
+                or iyy + izz <= ixx
+                or izz + ixx <= iyy
+            ):
+                print(
+                    f"Invalid inertia detected: {inertial.attrib.get('name', 'unknown')} "
+                    f"(ixx={ixx}, iyy={iyy}, izz={izz}). Replacing with default values."
+                )
+                inertia.attrib.update(
+                    {key: str(value) for key, value in default_inertia.items()}
+                )
+
+
+# Apply inertia validation to the entire MJCF model
+validate_and_fix_inertia(robot_urdf)
+
+
+# def fix_specific_element_inertia(mjcf: ET.Element, element_name: str):
+#     """
+#     Apply default inertia to a specific element by name.
+
+#     Args:
+#         mjcf (ET.Element): The MJCF file as ElementTree.
+#         element_name (str): The name of the element to fix.
+#     """
+#     default_inertia = {
+#         "ixx": "0.01",
+#         "iyy": "0.01",
+#         "izz": "0.01",
+#         "ixy": "0.0",
+#         "ixz": "0.0",
+#         "iyz": "0.0",
+#     }
+
+#     # Find the element by name
+#     inertial = mjcf.find(f".//body[@name='{element_name}']/inertial")
+#     if inertial is not None:
+#         inertia = inertial.find("inertia")
+#         if inertia is None:
+#             ET.SubElement(inertial, "inertia", attrib=default_inertia)
+#             print(f"Added default inertia to {element_name}.")
+#         else:
+#             inertia.attrib.update(default_inertia)
+#             print(f"Replaced inertia for {element_name}.")
+#     else:
+#         print(f"Element {element_name} not found in the MJCF.")
+
+
+# fix_specific_element_inertia(robot_urdf, "chest_r_bracket")
+# Add the balanceinertia attribute to the compiler element
+mjcf_root = ET.Element("mujoco", attrib={"model": "icub"})
+compiler = ET.SubElement(mjcf_root, "compiler", attrib={"balanceinertia": "true"})
+
 mjcf = load_urdf_into_mjcf(robot_urdf)
 
 # create a new worldbody, add the robot to it and remove the old worldbody
 add_new_worldbody(mjcf, freeze_root=False)
 
 for joint in mjcf.findall(".//body/joint"):
-    # if not any(
-    #     joint_element in joint.attrib["name"] for joint_element in hand_elements
-    # ):
     ctrlrange = joint.attrib["range"]
     add_position_actuator(
         mjcf,
         joint=joint.attrib["name"],
         ctrlrange=[float(ctrlrange.split()[0]), float(ctrlrange.split()[1])],
-        kp=1000,
-        name=joint.attrib["name"] + "_motor",
+        kp=1500,
+        dampratio=0.12,
+        name=joint.attrib["name"],
     )
 
-# set the damping
+# Set the damping
 set_joint_damping(mjcf, damping=2)
 
+# # Add visual elements
+# visual = ET.SubElement(mjcf_root, "visual")
+# ET.SubElement(
+#     visual, "headlight", diffuse="0.6 0.6 0.6", ambient="0.3 0.3 0.3", specular="0 0 0"
+# )
+# ET.SubElement(visual, "rgba", haze="0.15 0.25 0.35 1")
+# ET.SubElement(visual, "global", azimuth="120", elevation="-20")
 
-# set_joint_damping(mjcf, subset=hand_elements, damping=0.005)
+# # Add asset elements
+# asset = ET.SubElement(mjcf_root, "asset")
+# ET.SubElement(
+#     asset,
+#     "texture",
+#     type="2d",
+#     name="groundplane",
+#     builtin="checker",
+#     mark="edge",
+#     rgb1="0.2 0.3 0.4",
+#     rgb2="0.1 0.2 0.3",
+#     markrgb="0.8 0.8 0.8",
+#     width="300",
+#     height="300",
+# )
+# ET.SubElement(
+#     asset,
+#     "material",
+#     name="groundplane",
+#     texture="groundplane",
+#     texuniform="true",
+#     texrepeat="5 5",
+# )
+
+# # Add worldbody elements
+# worldbody = ET.SubElement(mjcf_root, "worldbody")
+# ET.SubElement(
+#     worldbody,
+#     "geom",
+#     name="ground",
+#     type="plane",
+#     pos="0 0 0",
+#     size="0 0 0.1",
+#     material="groundplane",
+# )
+# ET.SubElement(
+#     worldbody,
+#     "light",
+#     name="main_light",
+#     pos="0 0 2",
+#     dir="0 0 -1",
+#     diffuse="1 1 1",
+#     specular="0.5 0.5 0.5",
+#     directional="true",
+# )
+# ET.SubElement(worldbody, "camera", name="fixed", pos="1 -1 1", xyaxes="1 0 0 0 1 0")
+# ET.SubElement(
+#     worldbody,
+#     "camera",
+#     name="isometric",
+#     mode="targetbodycom",
+#     target="chest",
+#     pos="2 -2 2",
+#     xyaxes="1 0 0 0 0 1",
+# )
+
+# # Add option elements
+# ET.SubElement(
+#     mjcf_root, "option", gravity="0 0 -9.81", iterations="50", cone="elliptic"
+# )
+
+
 # # add sites for turbines
 def add_sites_turbines(
     mjcf: ET.Element, body_name: str, geom_mesh: str, name: str = None
@@ -294,7 +453,7 @@ separate_left_right_collision_groups(mjcf)
 mjmodel_str = ET.tostring(mjcf, encoding="unicode", method="xml")
 # print(mjmodel_str)
 
-# Save the formatted model
+
 with open("iRonCub.xml", "w") as f:
     formatted_xml = format_xml(mjcf)
     f.write(formatted_xml)

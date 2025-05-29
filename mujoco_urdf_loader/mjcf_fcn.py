@@ -48,6 +48,7 @@ def add_position_actuator(
     joint: str,
     ctrlrange: List[float] = None,
     kp: float = 10,
+    dampratio: float = 0.1,
     group: int = 0,
     name: str = None,
 ) -> ET.Element:
@@ -84,7 +85,8 @@ def add_position_actuator(
     motor.set("name", name if name is not None else f"{joint}_motor")
     motor.set("ctrlrange", f"{ctrlrange[0]} {ctrlrange[1]}")
     motor.set("kp", str(kp))
-    motor.set("group", str(group))
+    motor.set("dampratio", str(dampratio))
+    # motor.set("group", str(group))
 
     return mjcf
 
