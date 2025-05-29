@@ -1,24 +1,25 @@
-import idyntree.bindings as idyn
-import xml.etree.ElementTree as ET
-from typing import List, Union
-import resolve_robotics_uri_py as rru
-import tempfile
 import dataclasses
 import logging
+import tempfile
+import xml.etree.ElementTree as ET
+from enum import Enum
+from typing import List, Union
 
-from mujoco_urdf_loader.urdf_fcn import (
-    add_mujoco_element,
-    get_mesh_path,
-    remove_gazebo_elements,
-)
+import idyntree.bindings as idyn
+import resolve_robotics_uri_py as rru
+
+from mujoco_urdf_loader.generator import load_urdf_into_mjcf
 from mujoco_urdf_loader.mjcf_fcn import (
     add_position_actuator,
     add_torque_actuator,
     separate_left_right_collision_groups,
 )
-from mujoco_urdf_loader.generator import load_urdf_into_mjcf
+from mujoco_urdf_loader.urdf_fcn import (
+    add_mujoco_element,
+    get_mesh_path,
+    remove_gazebo_elements,
+)
 
-from enum import Enum
 
 class ControlMode(Enum):
     POSITION = "position"
