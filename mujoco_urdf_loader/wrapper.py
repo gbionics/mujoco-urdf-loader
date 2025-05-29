@@ -12,8 +12,8 @@ class MujocoWrapper:
     def __post_init__(self):
         self.model = mujoco.MjModel.from_xml_string(self.mjcf)
         self.data = mujoco.MjData(self.model)
-        self.joint_names = [self.model.joint(j).name for j in range(self.model.njnt) if self.model.joint(j).name != "base_link_fixed_joint"]
         self.actuator_names = [self.model.actuator(a).name for a in range(self.model.nu)]
+        self.joint_names = [self.model.joint(j).name for j in range(self.model.njnt) if self.model.joint(j).name in self.actuator_names]
         logging.info(f"Actuator loaded: {self.actuator_names}")
         self.initialize_joint_mapping()
 
