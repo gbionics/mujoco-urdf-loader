@@ -32,10 +32,11 @@ from mujoco_urdf_loader.urdf_fcn import (
 
 # Print the value of the environment variable
 package = os.getenv("IRONCUB_COMPONENT_SOURCE_DIR")
-# package = "C:/Users/pvanteddu/Documents/iRonCub_ws/src/component_ironcub"
+# package = "C:/Users/pvanteddu/Documents/iRonCub_ws/src/component_ironcub/"
 # # Load the robot urdf
 robot_relative_path = "models/iRonCub-Mk3/iRonCub/robots/iRonCub-Mk3/model.urdf"
-mesh_relative_path = "models/iRonCub-Mk3/iRonCub/meshes/obj"
+mujoco_relative_path = "models/iRonCub-Mk3/iRonCub/robots/iRonCub-Mk3_Mujoco"
+mesh_relative_path = "../../meshes/obj"
 
 
 robot_path = os.path.join(
@@ -43,11 +44,12 @@ robot_path = os.path.join(
 )  # "C:/Users/pvanteddu/Documents/iRonCub_ws/src/component_ironcub/models/iRonCub-Mk3/iRonCub/robots/iRonCub-Mk3/model.urdf"
 robot_urdf = ET.parse(robot_path).getroot()
 robot_urdf = get_robot_urdf(robot_path)
+mujoco_path = os.path.join(package, mujoco_relative_path)
 
 
-mesh_path = os.path.join(
-    package, mesh_relative_path
-)  # "C:/Users/pvanteddu/Documents/iRonCub_ws/src/component_ironcub/models/iRonCub-Mk3/iRonCub/meshes/obj"
+mesh_path = os.path.normpath(
+    os.path.join(os.path.dirname(robot_path), mesh_relative_path)
+)
 
 
 # remove the gazebo elements
@@ -507,8 +509,24 @@ mjmodel_str = ET.tostring(mjcf, encoding="unicode", method="xml")
 
 
 # Save the updated MJCF model to the XML file
+# Update <meshdir> subelement to be relative to the mujoco_path
+# Update <compiler> subelement to set meshdir exactly to "../../meshes/obj"
+# Remove duplicate <compiler> elements and set meshdir
+compiler_elems = mjcf.findall("compiler")
+if compiler_elems:
+    # Keep only the first <compiler> element
+    first_compiler = compiler_elems[0]
+    first_compiler.set("meshdir", "../../meshes/obj")
+    for compiler_elem in compiler_elems[1:]:
+        mjcf.remove(compiler_elem)
+else:
+    # If no <compiler> exists, add one
+    ET.SubElement(mjcf, "compiler", meshdir="../../meshes/obj")
+
 formatted_xml = format_xml(mjcf)
-with open("iRonCub.xml", "w") as f:
+output_xml_path = os.path.join(mujoco_path, "iRonCub.xml")
+os.makedirs(mujoco_path, exist_ok=True)
+with open(output_xml_path, "w") as f:
     f.write(formatted_xml)
 
 print("MuJoCo configuration prepended and saved to iRonCub.xml")
@@ -519,7 +537,7 @@ with open(path_temp_xml.name, "w") as f:
     f.write(formatted_xml)
 
 
-model = mujoco.MjModel.from_xml_path(path_temp_xml.name)
+model = mujoco.MjModel.from_xml_path(output_xml_path)
 data = mujoco.MjData(model)
 
 # Visualize the model
