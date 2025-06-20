@@ -31,12 +31,17 @@ from mujoco_urdf_loader.urdf_fcn import (
 
 
 # Print the value of the environment variable
-# package = os.getenv("IRONCUB_COMPONENT_SOURCE_DIR")
-package = "C:/Users/pvanteddu/Documents/iRonCub_ws/src/component_ironcub/"
+package = os.getenv("IRONCUB_COMPONENT_SOURCE_DIR")
+# package = "C:/Users/pvanteddu/Documents/iRonCub_ws/src/component_ironcub/"
 # # Load the robot urdf
-robot_relative_path = "models/iRonCub-Mk3/iRonCub/robots/iRonCub-Mk3/model.urdf"
+robot_relative_path = "models/iRonCub-Mk3/iRonCub/robots/iRonCub-Mk3/model_stl.urdf"
 mujoco_relative_path = "models/iRonCub-Mk3/iRonCub/robots/iRonCub-Mk3_Mujoco"
-mesh_relative_path = "../../meshes/obj"
+
+# Choose mesh_relative_path based on robot_relative_path
+if robot_relative_path.endswith("model_stl.urdf"):
+    mesh_relative_path = "../../meshes/stl"
+else:
+    mesh_relative_path = "../../meshes/obj"
 
 
 robot_path = os.path.join(
@@ -586,15 +591,18 @@ compiler_elems = mjcf.findall("compiler")
 if compiler_elems:
     # Keep only the first <compiler> element
     first_compiler = compiler_elems[0]
-    first_compiler.set("meshdir", "../../meshes/obj")
+    first_compiler.set("meshdir", mesh_relative_path)
     for compiler_elem in compiler_elems[1:]:
         mjcf.remove(compiler_elem)
 else:
     # If no <compiler> exists, add one
-    ET.SubElement(mjcf, "compiler", meshdir="../../meshes/obj")
+    ET.SubElement(mjcf, "compiler", meshdir=mesh_relative_path)
 
 formatted_xml = format_xml(mjcf)
-output_xml_path = os.path.join(mujoco_path, "iRonCub.xml")
+if robot_relative_path.endswith("model_stl.urdf"):
+    output_xml_path = os.path.join(mujoco_path, "iRonCub_stl.xml")
+else:
+    output_xml_path = os.path.join(mujoco_path, "iRonCub.xml")
 os.makedirs(mujoco_path, exist_ok=True)
 with open(output_xml_path, "w") as f:
     f.write(formatted_xml)
