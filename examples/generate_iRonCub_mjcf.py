@@ -31,8 +31,8 @@ from mujoco_urdf_loader.urdf_fcn import (
 
 
 # Print the value of the environment variable
-package = os.getenv("IRONCUB_COMPONENT_SOURCE_DIR")
-# package = "C:/Users/pvanteddu/Documents/iRonCub_ws/src/component_ironcub/"
+# package = os.getenv("IRONCUB_COMPONENT_SOURCE_DIR")
+package = "C:/Users/pvanteddu/Documents/iRonCub_ws/src/component_ironcub/"
 # # Load the robot urdf
 robot_relative_path = "models/iRonCub-Mk3/iRonCub/robots/iRonCub-Mk3/model.urdf"
 mujoco_relative_path = "models/iRonCub-Mk3/iRonCub/robots/iRonCub-Mk3_Mujoco"
@@ -41,7 +41,7 @@ mesh_relative_path = "../../meshes/obj"
 
 robot_path = os.path.join(
     package, robot_relative_path
-)  # "C:/Users/pvanteddu/Documents/iRonCub_ws/src/component_ironcub/models/iRonCub-Mk3/iRonCub/robots/iRonCub-Mk3/model.urdf"
+)  # "C:/Users/pvanteddu/Documents/iRonCub_ws/src/component_ironcub/models/iRonCub-Mk3/iRonCub/robots/iRonCub-Mk3/model_stl.urdf"
 robot_urdf = ET.parse(robot_path).getroot()
 robot_urdf = get_robot_urdf(robot_path)
 mujoco_path = os.path.join(package, mujoco_relative_path)
@@ -50,10 +50,6 @@ mujoco_path = os.path.join(package, mujoco_relative_path)
 mesh_path = os.path.normpath(
     os.path.join(os.path.dirname(robot_path), mesh_relative_path)
 )
-
-
-# remove the gazebo elements
-robot_urdf = remove_gazebo_elements(robot_urdf)
 
 
 controlled_joints = [
@@ -347,6 +343,80 @@ def add_ft_sites_to_chest(
             site.set("quat", quat_str)
 
     return mjcf
+
+
+# remove the gazebo elements
+robot_urdf = remove_gazebo_elements(robot_urdf)
+
+
+def add_materials_to_asset(mjcf: ET.Element, materials: list):
+    """
+    Add material definitions to the <asset> section of the MJCF.
+
+    Args:
+        mjcf (ET.Element): The MJCF root element.
+        materials (list): List of dicts, each with 'name' and 'rgba' keys.
+    """
+    asset = mjcf.find("asset")
+    if asset is None:
+        asset = ET.SubElement(mjcf, "asset")
+    for mat in materials:
+        ET.SubElement(asset, "material", name=mat["name"], rgba=mat["rgba"])
+
+
+def assign_materials_to_geoms(mjcf: ET.Element, geom_material_map: dict):
+    """
+    Assign specified materials to geoms by mesh name.
+
+    Args:
+        mjcf (ET.Element): The MJCF root element.
+        geom_material_map (dict): Mapping from mesh name to material name.
+    """
+    for mesh_name, material_name in geom_material_map.items():
+        for geom in mjcf.findall(f".//geom[@mesh='{mesh_name}']"):
+            geom.set("material", material_name)
+
+
+# Example usage:
+materials = [
+    {
+        "name": "robot_covers_cad",
+        "rgba": "0 0.5 0.5 1",
+        "geoms": [
+            "sim_icub3_l_ankle_2",
+            "sim_icub3_r_ankle_2",
+            "sim_icub3_l_hip_3",
+            "sim_icub3_r_hip_3",
+            "sim_icub3_l_lower_leg",
+            "sim_icub3_r_lower_leg",
+            "sim_icub3_chest",
+            "sim_icub3_l_upperarm",
+            "sim_icub3_r_upperarm",
+        ],
+    },
+    {"name": "head_mat", "rgba": "0.8 0.6 0.4 1", "geoms": ["sim_head_head"]},
+    {
+        "name": "turbine_mat",
+        "rgba": "0.1 0.1 0.1 1",
+        "geoms": [
+            "sim_sea_l_jet_turbine",
+            "sim_sea_r_jet_turbine",
+            "sim_sea_l_arm_p250",
+            "sim_sea_r_arm_p250",
+        ],
+    },
+]
+
+# Add materials to asset
+add_materials_to_asset(mjcf, materials)
+
+# Build geom-to-material mapping from the materials list
+geom_material_map = {}
+for mat in materials:
+    for geom_name in mat.get("geoms", []):
+        geom_material_map[geom_name] = mat["name"]
+
+assign_materials_to_geoms(mjcf, geom_material_map)
 
 
 # Function to format XML
