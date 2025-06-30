@@ -34,7 +34,7 @@ from mujoco_urdf_loader.urdf_fcn import (
 package = os.getenv("IRONCUB_COMPONENT_SOURCE_DIR")
 # package = "C:/Users/pvanteddu/Documents/iRonCub_ws/src/component_ironcub/"
 # # Load the robot urdf
-robot_relative_path = "models/iRonCub-Mk3/iRonCub/robots/iRonCub-Mk3/model_stl.urdf"
+robot_relative_path = "models/iRonCub-Mk3/iRonCub/robots/iRonCub-Mk3/model.urdf"
 mujoco_relative_path = "models/iRonCub-Mk3/iRonCub/robots/iRonCub-Mk3_Mujoco"
 
 # Choose mesh_relative_path based on robot_relative_path
@@ -268,6 +268,60 @@ def add_jet_turbine_motors(mjcf: ET.Element) -> ET.Element:
     return mjcf
 
 
+# Actuator configuration for each joint
+joint_actuator_params = {
+    "l_hip_pitch": {"kp": 1200, "dampratio": 0.2, "ctrlrange": (-0.785398, 2.00713)},
+    "l_hip_roll": {"kp": 1200, "dampratio": 0.2, "ctrlrange": (-0.174533, 1.95477)},
+    "l_hip_yaw": {"kp": 1200, "dampratio": 0.5, "ctrlrange": (-1.39626, 1.39626)},
+    "l_knee": {"kp": 1800, "dampratio": 0.8, "ctrlrange": (-1.22173, 0.0872665)},
+    "l_ankle_pitch": {"kp": 1800, "dampratio": 0.8, "ctrlrange": (-0.785398, 0.785398)},
+    "l_ankle_roll": {"kp": 1800, "dampratio": 0.8, "ctrlrange": (-0.436332, 0.436332)},
+    "r_hip_pitch": {"kp": 1200, "dampratio": 0.2, "ctrlrange": (-0.785398, 2.00713)},
+    "r_hip_roll": {"kp": 1200, "dampratio": 0.2, "ctrlrange": (-0.174533, 1.95477)},
+    "r_hip_yaw": {"kp": 1200, "dampratio": 0.5, "ctrlrange": (-1.39626, 1.39626)},
+    "r_knee": {"kp": 1800, "dampratio": 0.8, "ctrlrange": (-1.22173, 0.0872665)},
+    "r_ankle_pitch": {"kp": 1800, "dampratio": 0.8, "ctrlrange": (-0.785398, 0.785398)},
+    "r_ankle_roll": {"kp": 1800, "dampratio": 0.8, "ctrlrange": (-0.436332, 0.436332)},
+    "torso_roll": {"kp": 1500, "dampratio": 0.2, "ctrlrange": (-0.401426, 0.401426)},
+    "torso_pitch": {"kp": 1500, "dampratio": 0.3, "ctrlrange": (-0.314159, 0.785398)},
+    "torso_yaw": {"kp": 1500, "dampratio": 0.4, "ctrlrange": (-0.750492, 0.750492)},
+    "l_shoulder_pitch": {
+        "kp": 3000,
+        "dampratio": 0.3,
+        "ctrlrange": (-3.05433, 0.349066),
+    },
+    "l_shoulder_roll": {"kp": 3000, "dampratio": 0.3, "ctrlrange": (0.20944, 2.84489)},
+    "l_shoulder_yaw": {"kp": 3000, "dampratio": 0.3, "ctrlrange": (-0.872665, 1.39626)},
+    "l_elbow": {"kp": 3000, "dampratio": 0.3, "ctrlrange": (-0.0523599, 1.309)},
+    "r_shoulder_pitch": {
+        "kp": 3000,
+        "dampratio": 0.3,
+        "ctrlrange": (-3.05433, 0.349066),
+    },
+    "r_shoulder_roll": {"kp": 3000, "dampratio": 0.3, "ctrlrange": (0.20944, 2.84489)},
+    "r_shoulder_yaw": {"kp": 3000, "dampratio": 0.3, "ctrlrange": (-0.872665, 1.39626)},
+    "r_elbow": {"kp": 3000, "dampratio": 0.3, "ctrlrange": (-0.0523599, 1.309)},
+    "neck_pitch": {"kp": 2000, "dampratio": 0.12, "ctrlrange": (-0.523599, 0.383972)},
+    "neck_roll": {"kp": 2000, "dampratio": 0.12, "ctrlrange": (-0.349066, 0.349066)},
+    "neck_yaw": {"kp": 2000, "dampratio": 0.12, "ctrlrange": (-0.785398, 0.785398)},
+}
+
+
+def set_position_actuator_params(mjcf, joint_actuator_params):
+    """
+    Set kp, dampratio, and ctrlrange for position actuators in the MJCF tree.
+    """
+    for actuator in mjcf.findall(".//actuator/position"):
+        joint = actuator.get("joint")
+        if joint in joint_actuator_params:
+            params = joint_actuator_params[joint]
+            actuator.set("kp", str(params["kp"]))
+            actuator.set("dampratio", str(params["dampratio"]))
+            actuator.set(
+                "ctrlrange", f"{params['ctrlrange'][0]} {params['ctrlrange'][1]}"
+            )
+
+
 def add_ft_sites_to_chest(
     mjcf: ET.Element, urdf: ET.Element, parent_body: str
 ) -> ET.Element:
@@ -349,6 +403,39 @@ def add_ft_sites_to_chest(
 
     return mjcf
 
+
+def add_sites_links(
+    mjcf: ET.Element, urdf: ET.Element, parent_body: str, site_name: str
+) -> ET.Element:
+    """
+    Add a site with a specified name and pos="0 0 0" to the given body in the MJCF.
+
+    Args:
+        mjcf (ET.Element): The MJCF file as ElementTree.
+        urdf (ET.Element): The URDF file as ElementTree (not used here).
+        parent_body (str): The name of the parent body in the MJCF.
+        site_name (str): The name of the site to add.
+
+    Returns:
+        ET.Element: The modified MJCF file.
+    """
+    # Find the parent body in the MJCF
+    body = mjcf.find(f".//body[@name='{parent_body}']")
+    if body is None:
+        print(f"Body {parent_body} not found in MJCF")
+        return mjcf
+
+    # Create the new site with pos="0 0 0"
+    site = ET.SubElement(body, "site")
+    site.set("name", site_name)
+    site.set("pos", "0 0 0")
+
+    return mjcf
+
+
+# Add sites for the links
+mjcf = add_sites_links(mjcf, robot_urdf, "chest", "chest_sensor")
+mjcf = add_sites_links(mjcf, robot_urdf, "root_link", "root_link_site")
 
 # remove the gazebo elements
 robot_urdf = remove_gazebo_elements(robot_urdf)
@@ -464,7 +551,14 @@ def prepend_mujoco_configuration(mjcf: ET.Element) -> ET.Element:
         specular="0 0 0",
     )
     ET.SubElement(visual, "rgba", haze="0.15 0.25 0.35 1")
-    ET.SubElement(visual, "global", azimuth="120", elevation="-20")
+    ET.SubElement(
+        visual,
+        "global",
+        offwidth="1920",
+        offheight="1088",
+        azimuth="120",
+        elevation="-20",
+    )
 
     # Add the <asset> element
     asset = ET.SubElement(new_root, "asset")
@@ -559,6 +653,7 @@ def prepend_mujoco_configuration(mjcf: ET.Element) -> ET.Element:
 mjcf = prepend_mujoco_configuration(mjcf)
 
 add_jet_turbine_motors(mjcf)
+set_position_actuator_params(mjcf, joint_actuator_params)
 add_ft_sites_to_chest(mjcf, robot_urdf, "chest")
 
 # add sites for the imu
@@ -568,8 +663,23 @@ add_sites_to_body(mjcf, robot_urdf, "l_ankle_2", "l_foot_rear")
 add_sites_to_body(mjcf, robot_urdf, "r_ankle_2", "r_foot_rear")
 add_sites_to_body(mjcf, robot_urdf, "l_ankle_2", "l_foot_front")
 add_sites_to_body(mjcf, robot_urdf, "r_ankle_2", "r_foot_front")
+
 # add sensors to the robot
 add_sensors_to_sites(mjcf)
+# Add chest gyro and velocimeter sensors to the model
+sensor = mjcf.find("sensor")
+if sensor is None:
+    sensor = ET.SubElement(mjcf, "sensor")
+ET.SubElement(
+    sensor, "gyro", name="chest_gyro_sensor", site="chest_sensor", noise="0.048"
+)
+ET.SubElement(
+    sensor,
+    "velocimeter",
+    name="chest_velocimeter_sensor",
+    site="chest_sensor",
+    noise="0.5",
+)
 # add camera to the robot
 for body in mjcf.findall(".//body"):
     if "realsense" in body.attrib["name"]:
