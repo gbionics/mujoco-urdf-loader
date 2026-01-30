@@ -1,3 +1,4 @@
+import os
 import tempfile
 import xml.etree.ElementTree as ET
 
@@ -9,8 +10,14 @@ def load_urdf_into_mjcf(robot_urdf: ET.Element) -> ET.Element:
 
     model = mujoco.MjModel.from_xml_string(model_str)
 
-    with tempfile.NamedTemporaryFile(mode="w+") as f:
+    # Use delete=False to allow mujoco to write to the file on Windows
+    # (Windows doesn't allow opening a file that's already open)
+    f = tempfile.NamedTemporaryFile(mode="w+", suffix=".xml", delete=False)
+    try:
+        f.close()  # Close the file so mujoco can write to it
         mujoco.mj_saveLastXML(f.name, model)
         mjcf_file = ET.parse(f.name).getroot()
+    finally:
+        os.unlink(f.name)  # Clean up the temp file
 
     return mjcf_file
