@@ -139,7 +139,6 @@ def add_mujoco_element(robot_urdf: ET.Element, mesh_path: Path) -> ET.Element:
         "meshdir",
         str(mesh_path),
     )
-
     return new_robot_urdf
 
 
@@ -166,3 +165,24 @@ def get_joint_limits(robot_urdf: ET.Element) -> dict:
         }
 
     return joint_limits
+
+def get_joint_couplings(robot_urdf: ET.Element) -> dict:
+    """
+    Get the joint couplings from the urdf.
+
+    Args:
+        robot_urdf (ET.Element): The robot urdf.
+    Returns:
+        dict: The joint couplings.
+    """
+    joint_couplings = {}
+    for joint in robot_urdf.findall(".//joint"):
+        mimic = joint.find("mimic")
+        if mimic is not None:
+            joint_couplings[joint.attrib["name"]] = {
+                "joint": mimic.attrib["joint"],
+                "multiplier": float(mimic.attrib.get("multiplier", 1.0)),
+                "offset": float(mimic.attrib.get("offset", 0.0)),
+            }
+
+    return joint_couplings

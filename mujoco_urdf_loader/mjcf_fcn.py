@@ -177,15 +177,22 @@ def add_joint_vel_sensor(mjcf: ET.Element, joint: str, name: str = None) -> ET.E
 
 
 def add_joint_eq(
-    mjcf: ET.Element, joint1: str, joint2: str, name: str = None
+    mjcf: ET.Element, 
+    joint1: str, 
+    joint2: str, 
+    name: str = None, 
+    multiplier: float = 1.0, 
+    offset: float = 0.0
 ) -> ET.Element:
     """Add a joint equality constraint between two joints.
 
     Args:
         mjcf (ET.Element): The mjcf file.
-        joint1 (str): The first joint.
-        joint2 (str): The second joint.
+        joint1 (str): The first joint, the dependent joint.
+        joint2 (str): The second joint, the independent joint.
         name (str): The name of the equality constraint (default: f"{joint1}_{joint2}").
+        multiplier (float): The multiplier for the equality constraint (default: 1.0).
+        offset (float): The offset for the equality constraint (default: 0.0).
     """
 
     # check if there already is an equality element in the mjcf
@@ -200,6 +207,10 @@ def add_joint_eq(
     dist_eq.set("name", name if name is not None else f"{joint1}_{joint2}")
     dist_eq.set("joint1", joint1)
     dist_eq.set("joint2", joint2)
+
+    # Set the polynomial coefficients for the equality constraint: joint1 = multiplier * joint2 + offset
+    polycoef = f"{offset} {multiplier} 0 0 0"
+    dist_eq.set("polycoef", polycoef)
 
     return mjcf
 
