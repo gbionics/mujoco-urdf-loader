@@ -47,3 +47,7 @@ The codebase is organized into four main Python files:
 ### Testing
 
 A small and incomplete test suite is included and can be run using pytest.
+
+### Mantainers
+
+* Giovanni Fregonese [@giotherobot](https://github.com/giotherobot)
