@@ -76,7 +76,7 @@ class URDFtoMuJoCoLoader:
         missing_joint_sites = URDFtoMuJoCoLoader.get_missing_joint_sites(
             original_urdf,
             mjcf,
-            all_fixed_joints_as_sites=cfg.all_missing_joints_as_sites,
+            all_missing_joints_as_sites=cfg.all_missing_joints_as_sites,
         )
 
         loader = URDFtoMuJoCoLoader(mjcf, cfg)
@@ -87,20 +87,20 @@ class URDFtoMuJoCoLoader:
     def get_missing_joint_sites(
         robot_urdf: ET.Element,
         mjcf: ET.Element,
-        all_fixed_joints_as_sites: bool = False,
+        all_missing_joints_as_sites: bool = False,
     ) -> List[dict]:
         """Extract metadata for URDF joints that are missing in MJCF.
 
         Args:
             robot_urdf (ET.Element): The URDF root element.
             mjcf (ET.Element): The MJCF root element.
-            all_fixed_joints_as_sites (bool): If True, create sites for all URDF joints
+            all_missing_joints_as_sites (bool): If True, create sites for all URDF joints
                 whose names are missing in MJCF.
 
         Returns:
             List[dict]: Site descriptors with joint name, parent/child links and origin.
         """
-        if not all_fixed_joints_as_sites:
+        if not all_missing_joints_as_sites:
             return []
 
         all_joint_elements = robot_urdf.findall(".//joint")
