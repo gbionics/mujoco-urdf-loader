@@ -1,4 +1,5 @@
 import dataclasses
+import math
 import tempfile
 import xml.etree.ElementTree as ET
 from enum import Enum
@@ -125,6 +126,26 @@ class URDFtoMuJoCoLoader:
             )
 
         return fixed_joint_sites
+
+    @staticmethod
+    def urdf_rpy_to_quat(rpy: str) -> str:
+        """Convert URDF RPY (extrinsic XYZ) to MuJoCo quaternion (w x y z)."""
+        roll, pitch, yaw = map(float, rpy.split())
+
+        cr = math.cos(roll * 0.5)
+        sr = math.sin(roll * 0.5)
+        cp = math.cos(pitch * 0.5)
+        sp = math.sin(pitch * 0.5)
+        cy = math.cos(yaw * 0.5)
+        sy = math.sin(yaw * 0.5)
+
+        # URDF fixed-axis XYZ == intrinsic ZYX
+        qw = cr * cp * cy + sr * sp * sy
+        qx = sr * cp * cy - cr * sp * sy
+        qy = cr * sp * cy + sr * cp * sy
+        qz = cr * cp * sy - sr * sp * cy
+
+        return f"{qw} {qx} {qy} {qz}"
 
     @staticmethod
     def simplify_urdf(
@@ -311,7 +332,7 @@ class URDFtoMuJoCoLoader:
                 {
                     "name": site_name,
                     "pos": fixed_joint_site["xyz"],
-                    "euler": fixed_joint_site["rpy"],
+                    "quat": self.urdf_rpy_to_quat(fixed_joint_site["rpy"]),
                 },
             )
 
