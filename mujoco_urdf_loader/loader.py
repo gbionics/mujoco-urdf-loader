@@ -5,6 +5,8 @@ from enum import Enum
 from typing import List, Union
 
 import idyntree.bindings as idyn
+import numpy as np
+from scipy.spatial.transform import Rotation
 
 from mujoco_urdf_loader.generator import load_urdf_into_mjcf
 from mujoco_urdf_loader.mjcf_fcn import (
@@ -31,6 +33,7 @@ class URDFtoMuJoCoLoaderCfg:
     control_modes: Union[None, List[ControlMode]] = None
     stiffness: Union[None, List[float]] = None
     damping: Union[None, List[float]] = None
+    all_missing_joints_as_sites: bool = False
 
 
 class URDFtoMuJoCoLoader:
@@ -62,15 +65,233 @@ class URDFtoMuJoCoLoader:
         Returns:
             str: The URDF string.
         """
+        original_urdf = ET.parse(urdf_path).getroot()
+        original_urdf = remove_gazebo_elements(original_urdf)
+
         urdf_string = URDFtoMuJoCoLoader.simplify_urdf(urdf_path, cfg.controlled_joints, cfg.stiffness, cfg.damping)
-        urdf_string = remove_gazebo_elements(urdf_string)
-        urdf_string = add_mujoco_element(urdf_string, mesh_path)
-        mjcf = load_urdf_into_mjcf(urdf_string)
+        reduced_urdf = remove_gazebo_elements(urdf_string)
+        urdf_for_mjcf = add_mujoco_element(reduced_urdf, mesh_path)
+        mjcf = load_urdf_into_mjcf(urdf_for_mjcf)
         mjcf = separate_left_right_collision_groups(mjcf)
-        return URDFtoMuJoCoLoader(mjcf, cfg)
+
+        # Use the reduced URDF (from iDynTree) for computing site transforms.
+        # iDynTree modifies joint origins when merging links during model
+        # reduction, so the reduced URDF has origins consistent with the MJCF
+        # body frames produced by MuJoCo.
+        missing_joint_sites = URDFtoMuJoCoLoader.get_missing_joint_sites(
+            reduced_urdf,
+            mjcf,
+            controlled_joints=cfg.controlled_joints,
+            all_missing_joints_as_sites=cfg.all_missing_joints_as_sites,
+        )
+
+        loader = URDFtoMuJoCoLoader(mjcf, cfg)
+        loader.add_sites_for_missing_joints(missing_joint_sites)
+        return loader
 
     @staticmethod
-    def simplify_urdf(urdf_path: str, joints: List[str], stiffness: List[float] = None, damping: List[float] = None):
+    def get_missing_joint_sites(
+        robot_urdf: ET.Element,
+        mjcf: ET.Element,
+        controlled_joints: List[str] = None,
+        all_missing_joints_as_sites: bool = False,
+    ) -> List[dict]:
+        """Extract metadata for URDF links missing as bodies in MJCF.
+
+        Links can disappear from the MJCF for two reasons:
+        1. MuJoCo lumps fixed-joint child bodies into their parents.
+        2. iDynTree removes non-fixed joints not in the controlled list during
+           model reduction, and their child links are merged too.
+
+        This method identifies all such missing child links and builds site
+        descriptors so that their frames can be recovered as MuJoCo sites.
+
+        Args:
+            robot_urdf (ET.Element): The URDF root element.
+            mjcf (ET.Element): The MJCF root element.
+            controlled_joints (List[str]): The list of controlled joint names.
+                Used only for context; detection is based on comparing all URDF
+                links against MJCF bodies.
+            all_missing_joints_as_sites (bool): If True, enable site generation
+                for the missing links.
+
+        Returns:
+            List[dict]: Site descriptors with link name, parent/child links and origin.
+        """
+        if not all_missing_joints_as_sites:
+            return []
+
+        if controlled_joints is None:
+            controlled_joints = []
+
+        all_joint_elements = robot_urdf.findall(".//joint")
+
+        # Collect all URDF link names
+        urdf_link_names = {
+            link.attrib["name"]
+            for link in robot_urdf.findall(".//link")
+            if "name" in link.attrib
+        }
+
+        # Collect MJCF body names
+        mjcf_body_names = {
+            body.attrib["name"]
+            for body in mjcf.findall(".//body")
+            if "name" in body.attrib
+        }
+
+        # Map each child link to its parent joint (needed for origin + ancestor walk-up)
+        joint_by_child_link = {}
+        for joint in all_joint_elements:
+            child = joint.find("child")
+            if child is not None and "link" in child.attrib:
+                joint_by_child_link[child.attrib["link"]] = joint
+
+        # Find all URDF links that have no corresponding body in MJCF
+        missing_links = {}
+        for link_name in urdf_link_names:
+            if link_name not in mjcf_body_names:
+                joint = joint_by_child_link.get(link_name)
+                if joint is not None:
+                    missing_links[link_name] = joint
+
+        fixed_joint_sites = []
+        for missing_link_name, joint in missing_links.items():
+
+            parent_link = joint.find("parent").attrib["link"]
+            child_link = missing_link_name
+            origin = joint.find("origin")
+            xyz = origin.attrib.get("xyz", "0 0 0") if origin is not None else "0 0 0"
+            rpy = origin.attrib.get("rpy", "0 0 0") if origin is not None else "0 0 0"
+
+            # Build all ancestor-link candidates with transform from ancestor link frame
+            # to the fixed-joint site frame. This is needed when MuJoCo lumps nested
+            # fixed joints and intermediate bodies disappear.
+            ancestor_candidates = []
+            current_link = child_link
+            current_rot_to_site = URDFtoMuJoCoLoader.identity_rot()
+            current_pos_to_site = np.zeros(3)
+
+            ancestor_candidates.append(
+                {
+                    "link": current_link,
+                    "xyz": URDFtoMuJoCoLoader.vec_to_str(current_pos_to_site),
+                    "quat": URDFtoMuJoCoLoader.rot_to_quat_str(current_rot_to_site),
+                }
+            )
+
+            while current_link in joint_by_child_link:
+                parent_joint = joint_by_child_link[current_link]
+                parent_link_candidate = parent_joint.find("parent").attrib["link"]
+                parent_origin = parent_joint.find("origin")
+                parent_xyz = (
+                    parent_origin.attrib.get("xyz", "0 0 0")
+                    if parent_origin is not None
+                    else "0 0 0"
+                )
+                parent_rpy = (
+                    parent_origin.attrib.get("rpy", "0 0 0")
+                    if parent_origin is not None
+                    else "0 0 0"
+                )
+
+                rot_parent_current = URDFtoMuJoCoLoader.urdf_rpy_to_rot(parent_rpy)
+                pos_parent_current = URDFtoMuJoCoLoader.str_to_vec(parent_xyz)
+
+                current_pos_to_site = URDFtoMuJoCoLoader.compose_pos(
+                    rot_parent_current,
+                    pos_parent_current,
+                    current_pos_to_site,
+                )
+                current_rot_to_site = URDFtoMuJoCoLoader.compose_rot(
+                    rot_parent_current,
+                    current_rot_to_site,
+                )
+
+                ancestor_candidates.append(
+                    {
+                        "link": parent_link_candidate,
+                        "xyz": URDFtoMuJoCoLoader.vec_to_str(current_pos_to_site),
+                        "quat": URDFtoMuJoCoLoader.rot_to_quat_str(current_rot_to_site),
+                    }
+                )
+
+                current_link = parent_link_candidate
+
+            fixed_joint_sites.append(
+                {
+                    "name": missing_link_name,
+                    "parent_link": parent_link,
+                    "child_link": child_link,
+                    "xyz": xyz,
+                    "rpy": rpy,
+                    "ancestor_candidates": ancestor_candidates,
+                }
+            )
+
+        return fixed_joint_sites
+
+    @staticmethod
+    def urdf_rpy_to_quat(rpy: str) -> str:
+        """Convert URDF RPY (extrinsic XYZ) to MuJoCo quaternion (w x y z)."""
+        rot = URDFtoMuJoCoLoader.urdf_rpy_to_rot(rpy)
+        return URDFtoMuJoCoLoader.rot_to_quat_str(rot)
+
+    @staticmethod
+    def identity_rot() -> np.ndarray:
+        """Return a 3x3 identity rotation matrix."""
+        return np.eye(3)
+
+    @staticmethod
+    def str_to_vec(xyz: str) -> np.ndarray:
+        """Parse a space-separated string into a numpy array."""
+        return np.array(list(map(float, xyz.split())))
+
+    @staticmethod
+    def vec_to_str(vec: np.ndarray) -> str:
+        """Format a 3-element vector as a space-separated string."""
+        return f"{vec[0]} {vec[1]} {vec[2]}"
+
+    @staticmethod
+    def compose_rot(r_ab: np.ndarray, r_bc: np.ndarray) -> np.ndarray:
+        """Compose two rotation matrices: R_ac = R_ab @ R_bc."""
+        return r_ab @ r_bc
+
+    @staticmethod
+    def compose_pos(
+        r_ab: np.ndarray,
+        p_ab: np.ndarray,
+        p_bc: np.ndarray,
+    ) -> np.ndarray:
+        """Compose positions: p_ac = p_ab + R_ab @ p_bc."""
+        return p_ab + r_ab @ p_bc
+
+    @staticmethod
+    def urdf_rpy_to_rot(rpy: str) -> np.ndarray:
+        """URDF RPY (fixed-axis / extrinsic XYZ) to 3x3 rotation matrix via scipy."""
+        angles = list(map(float, rpy.split()))  # [roll, pitch, yaw]
+        return Rotation.from_euler("xyz", angles, degrees=False).as_matrix()
+
+    @staticmethod
+    def rot_to_quat_str(rot: np.ndarray) -> str:
+        """Convert a 3x3 rotation matrix to a MuJoCo quaternion string (w x y z)."""
+        quat = URDFtoMuJoCoLoader.rot_to_quat(rot)
+        return f"{quat[0]} {quat[1]} {quat[2]} {quat[3]}"
+
+    @staticmethod
+    def rot_to_quat(rot: np.ndarray) -> np.ndarray:
+        """Convert a 3x3 rotation matrix to quaternion [w, x, y, z] (MuJoCo convention)."""
+        # scipy returns [x, y, z, w]
+        xyzw = Rotation.from_matrix(np.asarray(rot)).as_quat()
+        return np.array([xyzw[3], xyzw[0], xyzw[1], xyzw[2]])
+
+    @staticmethod
+    def simplify_urdf(
+        urdf_path: str,
+        joints: List[str],
+        stiffness: List[float] = None,
+        damping: List[float] = None,
+    ):
         """
         Simplify the URDF using iDynTree.
 
@@ -201,7 +422,62 @@ class URDFtoMuJoCoLoader:
             if joint_element is not None:
                 self.add_actuator(controlled_joint, self.control_mode[controlled_joint])
             else:
-                raise ValueError(f"Joint {controlled_joint} not found in the MJCF model.")
+                raise ValueError(
+                    f"Joint {controlled_joint} not found in the MJCF model."
+                )
+
+    def add_sites_for_missing_joints(self, fixed_joint_sites: List[dict]):
+        """Add one MJCF site for each configured missing URDF joint.
+
+        The site is attached to the fixed joint child link body when available.
+        If the child body is not present in MJCF, the site is attached to the
+        parent link body at the URDF joint origin.
+        """
+        for fixed_joint_site in fixed_joint_sites:
+            site_name = fixed_joint_site["child_link"]
+
+            # Skip if site already exists
+            if self.mjcf.find(f".//site[@name='{site_name}']") is not None:
+                continue
+
+            candidates = fixed_joint_site.get("ancestor_candidates")
+            if not candidates:
+                candidates = [
+                    {
+                        "link": fixed_joint_site["child_link"],
+                        "xyz": "0 0 0",
+                        "quat": "1 0 0 0",
+                    },
+                    {
+                        "link": fixed_joint_site["parent_link"],
+                        "xyz": fixed_joint_site["xyz"],
+                        "quat": self.urdf_rpy_to_quat(fixed_joint_site["rpy"]),
+                    },
+                ]
+
+            attached = False
+            for candidate in candidates:
+                body = self.mjcf.find(f".//body[@name='{candidate['link']}']")
+                if body is None:
+                    continue
+
+                ET.SubElement(
+                    body,
+                    "site",
+                    {
+                        "name": site_name,
+                        "pos": candidate["xyz"],
+                        "quat": candidate["quat"],
+                    },
+                )
+                attached = True
+                break
+
+            if not attached:
+                raise ValueError(
+                    f"Cannot create site for fixed joint {site_name}: "
+                    "no surviving ancestor body found in MJCF."
+                )
 
     def get_mjcf(self):
         """
@@ -212,11 +488,18 @@ class URDFtoMuJoCoLoader:
         """
         return self.mjcf
 
-    def get_mjcf_string(self):
+    def get_mjcf_string(self, pretty: bool = False):
         """
         Get the Mujoco XML string.
+
+        Args:
+            pretty (bool): If True, return an indented, human-readable XML string.
 
         Returns:
             str: The Mujoco XML string.
         """
-        return ET.tostring(self.mjcf, encoding="unicode", method="xml")
+        mjcf = self.mjcf
+        if pretty:
+            mjcf = ET.fromstring(ET.tostring(self.mjcf, encoding="unicode", method="xml"))
+            ET.indent(mjcf, space="  ")
+        return ET.tostring(mjcf, encoding="unicode", method="xml")

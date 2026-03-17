@@ -24,7 +24,7 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Physics",
 ]
 requires-python = ">= 3.10"
-dependencies = ["mujoco", "resolve-robotics-uri-py", "idyntree"]
+dependencies = ["mujoco", "resolve-robotics-uri-py", "idyntree", "numpy", "scipy"]
 
 [project.readme]
 file = "README.md"
