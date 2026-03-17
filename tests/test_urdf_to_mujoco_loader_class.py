@@ -101,7 +101,35 @@ def test_total_mass(robot_name):
     control_modes = [ControlMode.TORQUE] * len(controlled_joints)
     stiffness = [0.0] * len(controlled_joints)
     damping = [0.0] * len(controlled_joints)
-    cfg = URDFtoMuJoCoLoaderCfg(controlled_joints, control_modes, stiffness, damping)
+    cfg = URDFtoMuJoCoLoaderCfg(controlled_joints, control_modes, stiffness, damping, all_missing_joints_as_sites=False)
+
+    loader = URDFtoMuJoCoLoader.load_urdf(urdf_path, mesh_path, cfg)
+    mjcf = loader.get_mjcf_string()
+
+    model = mujoco.MjModel.from_xml_string(mjcf)
+    data = mujoco.MjData(model)
+
+    total_mass_mj = sum(model.body_mass)
+
+    # Test with iDynTree
+    model_loader = idyntree.ModelLoader()
+    model_loader.loadReducedModelFromFile(urdf_path, controlled_joints)
+    idt_model = model_loader.model()
+    total_mass_idt = idt_model.getTotalMass()
+
+    assert total_mass_mj == pytest.approx(total_mass_idt, abs=1e-4)
+
+@pytest.mark.parametrize("robot_name", ["ergoCub", "ANYmal"])
+def test_total_mass_with_missing_links(robot_name):
+    robot = ROBOTS[robot_name]
+    controlled_joints = robot["controlled_joints"]
+    urdf_path = robot["urdf_path"]
+    mesh_path = robot["mesh_path"]
+
+    control_modes = [ControlMode.TORQUE] * len(controlled_joints)
+    stiffness = [0.0] * len(controlled_joints)
+    damping = [0.0] * len(controlled_joints)
+    cfg = URDFtoMuJoCoLoaderCfg(controlled_joints, control_modes, stiffness, damping, all_missing_joints_as_sites=True)
 
     loader = URDFtoMuJoCoLoader.load_urdf(urdf_path, mesh_path, cfg)
     mjcf = loader.get_mjcf_string()
