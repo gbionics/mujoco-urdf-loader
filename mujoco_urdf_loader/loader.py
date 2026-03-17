@@ -1,11 +1,12 @@
 import dataclasses
-import math
 import tempfile
 import xml.etree.ElementTree as ET
 from enum import Enum
 from typing import List, Union
 
 import idyntree.bindings as idyn
+import numpy as np
+from scipy.spatial.transform import Rotation
 
 from mujoco_urdf_loader.generator import load_urdf_into_mjcf
 from mujoco_urdf_loader.mjcf_fcn import (
@@ -147,7 +148,7 @@ class URDFtoMuJoCoLoader:
             ancestor_candidates = []
             current_link = child_link
             current_rot_to_site = URDFtoMuJoCoLoader.identity_rot()
-            current_pos_to_site = [0.0, 0.0, 0.0]
+            current_pos_to_site = np.zeros(3)
 
             ancestor_candidates.append(
                 {
@@ -211,117 +212,56 @@ class URDFtoMuJoCoLoader:
     @staticmethod
     def urdf_rpy_to_quat(rpy: str) -> str:
         """Convert URDF RPY (extrinsic XYZ) to MuJoCo quaternion (w x y z)."""
-        return URDFtoMuJoCoLoader.rot_to_quat_str(URDFtoMuJoCoLoader.urdf_rpy_to_rot(rpy))
+        rot = URDFtoMuJoCoLoader.urdf_rpy_to_rot(rpy)
+        return URDFtoMuJoCoLoader.rot_to_quat_str(rot)
 
     @staticmethod
-    def identity_rot() -> List[List[float]]:
-        return [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]
+    def identity_rot() -> np.ndarray:
+        """Return a 3x3 identity rotation matrix."""
+        return np.eye(3)
 
     @staticmethod
-    def str_to_vec(xyz: str) -> List[float]:
-        return list(map(float, xyz.split()))
+    def str_to_vec(xyz: str) -> np.ndarray:
+        """Parse a space-separated string into a numpy array."""
+        return np.array(list(map(float, xyz.split())))
 
     @staticmethod
-    def vec_to_str(vec: List[float]) -> str:
+    def vec_to_str(vec: np.ndarray) -> str:
+        """Format a 3-element vector as a space-separated string."""
         return f"{vec[0]} {vec[1]} {vec[2]}"
 
     @staticmethod
-    def matmul3x3(a: List[List[float]], b: List[List[float]]) -> List[List[float]]:
-        return [
-            [
-                a[0][0] * b[0][0] + a[0][1] * b[1][0] + a[0][2] * b[2][0],
-                a[0][0] * b[0][1] + a[0][1] * b[1][1] + a[0][2] * b[2][1],
-                a[0][0] * b[0][2] + a[0][1] * b[1][2] + a[0][2] * b[2][2],
-            ],
-            [
-                a[1][0] * b[0][0] + a[1][1] * b[1][0] + a[1][2] * b[2][0],
-                a[1][0] * b[0][1] + a[1][1] * b[1][1] + a[1][2] * b[2][1],
-                a[1][0] * b[0][2] + a[1][1] * b[1][2] + a[1][2] * b[2][2],
-            ],
-            [
-                a[2][0] * b[0][0] + a[2][1] * b[1][0] + a[2][2] * b[2][0],
-                a[2][0] * b[0][1] + a[2][1] * b[1][1] + a[2][2] * b[2][1],
-                a[2][0] * b[0][2] + a[2][1] * b[1][2] + a[2][2] * b[2][2],
-            ],
-        ]
-
-    @staticmethod
-    def matvec3(m: List[List[float]], v: List[float]) -> List[float]:
-        return [
-            m[0][0] * v[0] + m[0][1] * v[1] + m[0][2] * v[2],
-            m[1][0] * v[0] + m[1][1] * v[1] + m[1][2] * v[2],
-            m[2][0] * v[0] + m[2][1] * v[1] + m[2][2] * v[2],
-        ]
-
-    @staticmethod
-    def compose_rot(r_ab: List[List[float]], r_bc: List[List[float]]) -> List[List[float]]:
-        return URDFtoMuJoCoLoader.matmul3x3(r_ab, r_bc)
+    def compose_rot(r_ab: np.ndarray, r_bc: np.ndarray) -> np.ndarray:
+        """Compose two rotation matrices: R_ac = R_ab @ R_bc."""
+        return r_ab @ r_bc
 
     @staticmethod
     def compose_pos(
-        r_ab: List[List[float]],
-        p_ab: List[float],
-        p_bc: List[float],
-    ) -> List[float]:
-        r_ab_p_bc = URDFtoMuJoCoLoader.matvec3(r_ab, p_bc)
-        return [
-            p_ab[0] + r_ab_p_bc[0],
-            p_ab[1] + r_ab_p_bc[1],
-            p_ab[2] + r_ab_p_bc[2],
-        ]
+        r_ab: np.ndarray,
+        p_ab: np.ndarray,
+        p_bc: np.ndarray,
+    ) -> np.ndarray:
+        """Compose positions: p_ac = p_ab + R_ab @ p_bc."""
+        return p_ab + r_ab @ p_bc
 
     @staticmethod
-    def urdf_rpy_to_rot(rpy: str) -> List[List[float]]:
-        """URDF rpy uses fixed/extrinsic XYZ; matrix is Rz(yaw) * Ry(pitch) * Rx(roll)."""
-        roll, pitch, yaw = map(float, rpy.split())
-
-        cr, sr = math.cos(roll), math.sin(roll)
-        cp, sp = math.cos(pitch), math.sin(pitch)
-        cy, sy = math.cos(yaw), math.sin(yaw)
-
-        rx = [[1.0, 0.0, 0.0], [0.0, cr, -sr], [0.0, sr, cr]]
-        ry = [[cp, 0.0, sp], [0.0, 1.0, 0.0], [-sp, 0.0, cp]]
-        rz = [[cy, -sy, 0.0], [sy, cy, 0.0], [0.0, 0.0, 1.0]]
-
-        return URDFtoMuJoCoLoader.matmul3x3(rz, URDFtoMuJoCoLoader.matmul3x3(ry, rx))
+    def urdf_rpy_to_rot(rpy: str) -> np.ndarray:
+        """URDF RPY (extrinsic XYZ) to 3x3 rotation matrix via scipy."""
+        angles = list(map(float, rpy.split()))  # [roll, pitch, yaw]
+        return Rotation.from_euler("XYZ", angles, degrees=False).as_matrix()
 
     @staticmethod
-    def rot_to_quat_str(rot: List[List[float]]) -> str:
-        qw, qx, qy, qz = URDFtoMuJoCoLoader.rot_to_quat(rot)
-        return f"{qw} {qx} {qy} {qz}"
+    def rot_to_quat_str(rot: np.ndarray) -> str:
+        """Convert a 3x3 rotation matrix to a MuJoCo quaternion string (w x y z)."""
+        quat = URDFtoMuJoCoLoader.rot_to_quat(rot)
+        return f"{quat[0]} {quat[1]} {quat[2]} {quat[3]}"
 
     @staticmethod
-    def rot_to_quat(rot: List[List[float]]) -> List[float]:
-        trace = rot[0][0] + rot[1][1] + rot[2][2]
-        if trace > 0.0:
-            s = math.sqrt(trace + 1.0) * 2.0
-            qw = 0.25 * s
-            qx = (rot[2][1] - rot[1][2]) / s
-            qy = (rot[0][2] - rot[2][0]) / s
-            qz = (rot[1][0] - rot[0][1]) / s
-        elif rot[0][0] > rot[1][1] and rot[0][0] > rot[2][2]:
-            s = math.sqrt(1.0 + rot[0][0] - rot[1][1] - rot[2][2]) * 2.0
-            qw = (rot[2][1] - rot[1][2]) / s
-            qx = 0.25 * s
-            qy = (rot[0][1] + rot[1][0]) / s
-            qz = (rot[0][2] + rot[2][0]) / s
-        elif rot[1][1] > rot[2][2]:
-            s = math.sqrt(1.0 + rot[1][1] - rot[0][0] - rot[2][2]) * 2.0
-            qw = (rot[0][2] - rot[2][0]) / s
-            qx = (rot[0][1] + rot[1][0]) / s
-            qy = 0.25 * s
-            qz = (rot[1][2] + rot[2][1]) / s
-        else:
-            s = math.sqrt(1.0 + rot[2][2] - rot[0][0] - rot[1][1]) * 2.0
-            qw = (rot[1][0] - rot[0][1]) / s
-            qx = (rot[0][2] + rot[2][0]) / s
-            qy = (rot[1][2] + rot[2][1]) / s
-            qz = 0.25 * s
-
-        norm = math.sqrt(qw * qw + qx * qx + qy * qy + qz * qz)
-        if norm == 0.0:
-            return [1.0, 0.0, 0.0, 0.0]
-        return [qw / norm, qx / norm, qy / norm, qz / norm]
+    def rot_to_quat(rot: np.ndarray) -> np.ndarray:
+        """Convert a 3x3 rotation matrix to quaternion [w, x, y, z] (MuJoCo convention)."""
+        # scipy returns [x, y, z, w]
+        xyzw = Rotation.from_matrix(np.asarray(rot)).as_quat()
+        return np.array([xyzw[3], xyzw[0], xyzw[1], xyzw[2]])
 
     @staticmethod
     def simplify_urdf(
