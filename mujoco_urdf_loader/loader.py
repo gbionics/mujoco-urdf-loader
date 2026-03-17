@@ -31,6 +31,7 @@ class URDFtoMuJoCoLoaderCfg:
     control_modes: Union[None, List[ControlMode]] = None
     stiffness: Union[None, List[float]] = None
     damping: Union[None, List[float]] = None
+    fixed_joints: Union[None, List[str]] = None
 
 
 class URDFtoMuJoCoLoader:
@@ -62,15 +63,76 @@ class URDFtoMuJoCoLoader:
         Returns:
             str: The URDF string.
         """
+        original_urdf = ET.parse(urdf_path).getroot()
+        original_urdf = remove_gazebo_elements(original_urdf)
+        fixed_joint_sites = URDFtoMuJoCoLoader.get_fixed_joint_sites(
+            original_urdf, cfg.fixed_joints
+        )
+
         urdf_string = URDFtoMuJoCoLoader.simplify_urdf(urdf_path, cfg.controlled_joints, cfg.stiffness, cfg.damping)
         urdf_string = remove_gazebo_elements(urdf_string)
         urdf_string = add_mujoco_element(urdf_string, mesh_path)
         mjcf = load_urdf_into_mjcf(urdf_string)
         mjcf = separate_left_right_collision_groups(mjcf)
-        return URDFtoMuJoCoLoader(mjcf, cfg)
+        loader = URDFtoMuJoCoLoader(mjcf, cfg)
+        loader.add_sites_for_fixed_joints(fixed_joint_sites)
+        return loader
 
     @staticmethod
-    def simplify_urdf(urdf_path: str, joints: List[str], stiffness: List[float] = None, damping: List[float] = None):
+    def get_fixed_joint_sites(
+        robot_urdf: ET.Element, fixed_joints: List[str] = None
+    ) -> List[dict]:
+        """Extract fixed-joint metadata needed to create MJCF sites.
+
+        Args:
+            robot_urdf (ET.Element): The URDF root element.
+            fixed_joints (List[str], optional): Fixed joint names to create sites for.
+
+        Returns:
+            List[dict]: Site descriptors with joint name, parent/child links and origin.
+        """
+        if not fixed_joints:
+            return []
+
+        fixed_joint_elements = {
+            joint.attrib["name"]: joint
+            for joint in robot_urdf.findall(".//joint")
+            if joint.attrib.get("type") == "fixed"
+        }
+
+        fixed_joint_sites = []
+        for fixed_joint_name in fixed_joints:
+            joint = fixed_joint_elements.get(fixed_joint_name)
+            if joint is None:
+                raise ValueError(
+                    f"Fixed joint {fixed_joint_name} not found in the URDF model."
+                )
+
+            parent_link = joint.find("parent").attrib["link"]
+            child_link = joint.find("child").attrib["link"]
+            origin = joint.find("origin")
+            xyz = origin.attrib.get("xyz", "0 0 0") if origin is not None else "0 0 0"
+            rpy = origin.attrib.get("rpy", "0 0 0") if origin is not None else "0 0 0"
+
+            fixed_joint_sites.append(
+                {
+                    "name": fixed_joint_name,
+                    "parent_link": parent_link,
+                    "child_link": child_link,
+                    "xyz": xyz,
+                    "rpy": rpy,
+                }
+            )
+
+        return fixed_joint_sites
+
+    @staticmethod
+    def simplify_urdf(
+        urdf_path: str,
+        joints: List[str],
+        stiffness: List[float] = None,
+        damping: List[float] = None,
+    ):
         """
         Simplify the URDF using iDynTree.
 
@@ -201,7 +263,57 @@ class URDFtoMuJoCoLoader:
             if joint_element is not None:
                 self.add_actuator(controlled_joint, self.control_mode[controlled_joint])
             else:
-                raise ValueError(f"Joint {controlled_joint} not found in the MJCF model.")
+                raise ValueError(
+                    f"Joint {controlled_joint} not found in the MJCF model."
+                )
+
+    def add_sites_for_fixed_joints(self, fixed_joint_sites: List[dict]):
+        """Add one MJCF site for each configured fixed joint.
+
+        The site is attached to the fixed joint child link body when available.
+        If the child body is not present in MJCF, the site is attached to the
+        parent link body at the URDF joint origin.
+        """
+        for fixed_joint_site in fixed_joint_sites:
+            site_name = fixed_joint_site["name"]
+
+            # Skip if site already exists
+            if self.mjcf.find(f".//site[@name='{site_name}']") is not None:
+                continue
+
+            child_body = self.mjcf.find(
+                f".//body[@name='{fixed_joint_site['child_link']}']"
+            )
+            if child_body is not None:
+                ET.SubElement(
+                    child_body,
+                    "site",
+                    {
+                        "name": site_name,
+                        "pos": "0 0 0",
+                    },
+                )
+                continue
+
+            parent_body = self.mjcf.find(
+                f".//body[@name='{fixed_joint_site['parent_link']}']"
+            )
+            if parent_body is None:
+                raise ValueError(
+                    f"Cannot create site for fixed joint {site_name}: "
+                    f"neither child body {fixed_joint_site['child_link']} nor "
+                    f"parent body {fixed_joint_site['parent_link']} found in MJCF."
+                )
+
+            ET.SubElement(
+                parent_body,
+                "site",
+                {
+                    "name": site_name,
+                    "pos": fixed_joint_site["xyz"],
+                    "euler": fixed_joint_site["rpy"],
+                },
+            )
 
     def get_mjcf(self):
         """
