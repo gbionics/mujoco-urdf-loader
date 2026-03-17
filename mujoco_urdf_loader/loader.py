@@ -33,6 +33,7 @@ class URDFtoMuJoCoLoaderCfg:
     control_modes: Union[None, List[ControlMode]] = None
     stiffness: Union[None, List[float]] = None
     damping: Union[None, List[float]] = None
+    armature: Union[None, List[float]] = None
     all_missing_joints_as_sites: bool = False
 
 
@@ -81,6 +82,7 @@ class URDFtoMuJoCoLoader:
         )
 
         loader = URDFtoMuJoCoLoader(mjcf, cfg)
+        loader.set_armature(cfg.armature)
         loader.add_sites_for_missing_joints(missing_joint_sites)
         return loader
 
@@ -349,6 +351,27 @@ class URDFtoMuJoCoLoader:
 
         if not fixed_joint_found:
             raise ValueError("No fixed joint found that can be modified to floating.")
+
+    def set_armature(self, armature: Union[None, List[float]]):
+        """Set the armature attribute on each controlled joint in the MJCF model.
+
+        Args:
+            armature (List[float] | None): Armature values, one per controlled joint.
+                If None, no armature attribute is set.
+        """
+        if armature is None:
+            return
+
+        if len(armature) != len(self.controlled_joints):
+            raise ValueError(
+                f"Length of armature ({len(armature)}) must match "
+                f"the number of controlled joints ({len(self.controlled_joints)})."
+            )
+
+        for joint_name, value in zip(self.controlled_joints, armature):
+            joint_elem = self.mjcf.find(f".//joint[@name='{joint_name}']")
+            if joint_elem is not None:
+                joint_elem.set("armature", str(value))
 
     def set_control_mode(self, joint: Union[str, List[str]], mode: ControlMode):
         """
