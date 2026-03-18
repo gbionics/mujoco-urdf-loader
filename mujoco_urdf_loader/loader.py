@@ -2,7 +2,7 @@ import dataclasses
 import tempfile
 import xml.etree.ElementTree as ET
 from enum import Enum
-from typing import List, Union
+from typing import Any, Dict, List, Union
 
 import idyntree.bindings as idyn
 import numpy as np
@@ -13,6 +13,8 @@ from mujoco_urdf_loader.mjcf_fcn import (
     add_position_actuator,
     add_torque_actuator,
     separate_left_right_collision_groups,
+    add_framequat_sensor,
+    add_gyro_sensor,
 )
 from mujoco_urdf_loader.urdf_fcn import (
     add_mujoco_element,
@@ -28,6 +30,19 @@ class ControlMode(Enum):
 
 
 @dataclasses.dataclass
+class FrameQuatSensorCfg:
+    objname: str
+    objtype: str = "site"
+    name: str = None
+
+
+@dataclasses.dataclass
+class GyroSensorCfg:
+    site: str
+    name: str = None
+
+
+@dataclasses.dataclass
 class URDFtoMuJoCoLoaderCfg:
     controlled_joints: List[str]
     control_modes: Union[None, List[ControlMode]] = None
@@ -35,6 +50,8 @@ class URDFtoMuJoCoLoaderCfg:
     damping: Union[None, List[float]] = None
     armature: Union[None, List[float]] = None
     all_missing_joints_as_sites: bool = False
+    framequat_sensors_cfg: Union[None, List[Union[FrameQuatSensorCfg, Dict[str, Any]]]] = None
+    gyro_sensors_cfg: Union[None, List[Union[GyroSensorCfg, Dict[str, Any]]]] = None
 
 
 class URDFtoMuJoCoLoader:
@@ -89,7 +106,86 @@ class URDFtoMuJoCoLoader:
         loader = URDFtoMuJoCoLoader(mjcf, cfg)
         loader.set_armature(cfg.armature)
         loader.add_sites_for_missing_joints(missing_joint_sites)
+        loader.add_framequat_sensors(cfg.framequat_sensors_cfg)
+        loader.add_gyro_sensors(cfg.gyro_sensors_cfg)
         return loader
+
+    @staticmethod
+    def _normalize_framequat_sensor_cfg(
+        sensor_cfg: Union[FrameQuatSensorCfg, Dict[str, Any]],
+    ) -> FrameQuatSensorCfg:
+        if isinstance(sensor_cfg, FrameQuatSensorCfg):
+            return sensor_cfg
+
+        if not isinstance(sensor_cfg, dict):
+            raise TypeError(
+                "Each framequat sensor configuration must be a FrameQuatSensorCfg "
+                "or a dict with keys objname, objtype (or obtype), and name."
+            )
+
+        objname = sensor_cfg.get("objname")
+        objtype = sensor_cfg.get("objtype", sensor_cfg.get("obtype"))
+        name = sensor_cfg.get("name")
+
+        if objname is None or objtype is None or name is None:
+            raise ValueError(
+                "Each framequat sensor requires objname, objtype (or obtype), and name."
+            )
+
+        return FrameQuatSensorCfg(objname=objname, objtype=objtype, name=name)
+
+    def add_framequat_sensors(
+        self,
+        framequat_sensors_cfg: Union[None, List[Union[FrameQuatSensorCfg, Dict[str, Any]]]] = None,
+    ):
+        if framequat_sensors_cfg is None:
+            # skip adding sensors if no configuration is provided
+            return
+
+        for sensor_cfg in framequat_sensors_cfg:
+            normalized_cfg = self._normalize_framequat_sensor_cfg(sensor_cfg)
+            add_framequat_sensor(
+                self.mjcf,
+                objname=normalized_cfg.objname,
+                objtype=normalized_cfg.objtype,
+                name=normalized_cfg.name,
+            )
+
+    @staticmethod
+    def _normalize_gyro_sensor_cfg(
+        sensor_cfg: Union[GyroSensorCfg, Dict[str, Any]],
+    ) -> GyroSensorCfg:
+        if isinstance(sensor_cfg, GyroSensorCfg):
+            return sensor_cfg
+
+        if not isinstance(sensor_cfg, dict):
+            raise TypeError(
+                "Each gyro sensor configuration must be a GyroSensorCfg "
+                "or a dict with keys site and name."
+            )
+
+        site = sensor_cfg.get("site", sensor_cfg.get("objname"))
+        name = sensor_cfg.get("name")
+
+        if site is None:
+            raise ValueError("Each gyro sensor requires site.")
+
+        return GyroSensorCfg(site=site, name=name)
+
+    def add_gyro_sensors(
+        self,
+        gyro_sensors_cfg: Union[None, List[Union[GyroSensorCfg, Dict[str, Any]]]] = None,
+    ):
+        if gyro_sensors_cfg is None:
+            return
+
+        for sensor_cfg in gyro_sensors_cfg:
+            normalized_cfg = self._normalize_gyro_sensor_cfg(sensor_cfg)
+            add_gyro_sensor(
+                self.mjcf,
+                site=normalized_cfg.site,
+                name=normalized_cfg.name,
+            )
 
     @staticmethod
     def get_missing_joint_sites(

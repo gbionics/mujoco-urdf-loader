@@ -175,6 +175,53 @@ def add_joint_vel_sensor(mjcf: ET.Element, joint: str, name: str = None) -> ET.E
 
     return mjcf
 
+def add_gyro_sensor(mjcf: ET.Element, site: str, name: str = None) -> ET.Element:
+    """Add a gyroscope sensor to the body.
+
+    Args:
+        mjcf (ET.Element): The mjcf file.
+        site (str): The site to add the sensor to.
+        name (str): The name of the sensor (default: f"{site}_gyro").
+    """
+
+    # check if there already is a sensor element in the mjcf
+    if mjcf.find(".//sensor") is None:
+        sensors = ET.Element("sensor")
+        mjcf.append(sensors)
+    else:
+        sensors = mjcf.find(".//sensor")
+
+    # create the gyroscope sensor
+    gyro = ET.SubElement(sensors, "gyro")
+    gyro.set("name", name if name is not None else f"{site}_gyro")
+    gyro.set("site", site)
+
+    return mjcf
+
+def add_framequat_sensor(mjcf: ET.Element, objname: str, objtype: str = 'site', name: str = None) -> ET.Element:
+    """Add a frame quaternion sensor to the body.
+
+    Args:
+        mjcf (ET.Element): The mjcf file.
+        site (str): The site to add the sensor to.
+        name (str): The name of the sensor (default: f"{site}_framequat").
+    """
+
+    # check if there already is a sensor element in the mjcf
+    if mjcf.find(".//sensor") is None:
+        sensors = ET.Element("sensor")
+        mjcf.append(sensors)
+    else:
+        sensors = mjcf.find(".//sensor")
+
+    # create the frame quaternion sensor
+    framequat = ET.SubElement(sensors, "framequat")
+    framequat.set("name", name if name is not None else f"{objname}_framequat")
+    framequat.set("objtype", objtype)
+    framequat.set("objname", objname)
+
+    return mjcf
+
 
 def add_joint_eq(
     mjcf: ET.Element, 
