@@ -15,11 +15,14 @@ from mujoco_urdf_loader.mjcf_fcn import (
     separate_left_right_collision_groups,
     add_framequat_sensor,
     add_gyro_sensor,
+    convert_hinge_to_ball_joints,
 )
 from mujoco_urdf_loader.urdf_fcn import (
     add_mujoco_element,
     get_mesh_path,
     remove_gazebo_elements,
+    detect_spherical_joint_groups,
+    collapse_spherical_revolute_triplets,
 )
 
 
@@ -52,6 +55,9 @@ class URDFtoMuJoCoLoaderCfg:
     all_missing_joints_as_sites: bool = False
     framequat_sensors_cfg: Union[None, List[Union[FrameQuatSensorCfg, Dict[str, Any]]]] = None
     gyro_sensors_cfg: Union[None, List[Union[GyroSensorCfg, Dict[str, Any]]]] = None
+    ball_joint_damping: float = 0.0
+    ball_joint_armature: float = 0.0
+    ball_joint_frictionloss: float = 0.0
 
 
 class URDFtoMuJoCoLoader:
@@ -88,9 +94,76 @@ class URDFtoMuJoCoLoader:
 
         urdf_string = URDFtoMuJoCoLoader.simplify_urdf(urdf_path, cfg.controlled_joints, cfg.stiffness, cfg.damping)
         reduced_urdf = remove_gazebo_elements(urdf_string)
+
+        # --- Spherical joint handling ---
+        # Detect triplets of revolute joints that represent spherical joints
+        # (iDynTree convention: 3 revolute joints with x/y/z axes + 2 dummy links)
+        spherical_groups = detect_spherical_joint_groups(cfg.controlled_joints)
+        ball_joint_map = {}
+        if spherical_groups:
+            reduced_urdf, ball_joint_map = collapse_spherical_revolute_triplets(
+                reduced_urdf, spherical_groups
+            )
+            print(f"Collapsed {len(spherical_groups)} spherical joint group(s) "
+                  f"into ball joint placeholders: "
+                  f"{[g['base_name'] for g in spherical_groups]}")
+
         urdf_for_mjcf = add_mujoco_element(reduced_urdf, mesh_path)
         mjcf = load_urdf_into_mjcf(urdf_for_mjcf)
         mjcf = separate_left_right_collision_groups(mjcf)
+
+        # Convert placeholder hinge joints to MuJoCo ball joints
+        if ball_joint_map:
+            convert_hinge_to_ball_joints(
+                mjcf, ball_joint_map,
+                damping=cfg.ball_joint_damping,
+                armature=cfg.ball_joint_armature,
+                frictionloss=cfg.ball_joint_frictionloss,  # use damping value for frictionloss as well for stability
+            )
+
+        # Build the set of spherical joint names (all 3 axes) for filtering
+        spherical_joint_names = set()
+        for group in spherical_groups:
+            spherical_joint_names.update([
+                group["joint_x"], group["joint_y"], group["joint_z"]
+            ])
+
+        # Create a filtered config that excludes the spherical revolute joints
+        # (ball joints are passive and don't need actuators)
+        if spherical_joint_names:
+            filtered_indices = [
+                i for i, j in enumerate(cfg.controlled_joints)
+                if j not in spherical_joint_names
+            ]
+            filtered_joints = [cfg.controlled_joints[i] for i in filtered_indices]
+            filtered_control_modes = (
+                [cfg.control_modes[i] for i in filtered_indices]
+                if cfg.control_modes is not None else None
+            )
+            filtered_stiffness = (
+                [cfg.stiffness[i] for i in filtered_indices]
+                if cfg.stiffness is not None else None
+            )
+            filtered_damping = (
+                [cfg.damping[i] for i in filtered_indices]
+                if cfg.damping is not None else None
+            )
+            filtered_armature = (
+                [cfg.armature[i] for i in filtered_indices]
+                if cfg.armature is not None else None
+            )
+            mjcf_cfg = URDFtoMuJoCoLoaderCfg(
+                controlled_joints=filtered_joints,
+                control_modes=filtered_control_modes,
+                stiffness=filtered_stiffness,
+                damping=filtered_damping,
+                armature=filtered_armature,
+                all_missing_joints_as_sites=cfg.all_missing_joints_as_sites,
+                framequat_sensors_cfg=cfg.framequat_sensors_cfg,
+                gyro_sensors_cfg=cfg.gyro_sensors_cfg,
+            )
+        else:
+            mjcf_cfg = cfg
 
         # Use the reduced URDF (from iDynTree) for computing site transforms.
         # iDynTree modifies joint origins when merging links during model
@@ -99,15 +172,15 @@ class URDFtoMuJoCoLoader:
         missing_joint_sites = URDFtoMuJoCoLoader.get_missing_joint_sites(
             reduced_urdf,
             mjcf,
-            controlled_joints=cfg.controlled_joints,
-            all_missing_joints_as_sites=cfg.all_missing_joints_as_sites,
+            controlled_joints=mjcf_cfg.controlled_joints,
+            all_missing_joints_as_sites=mjcf_cfg.all_missing_joints_as_sites,
         )
 
-        loader = URDFtoMuJoCoLoader(mjcf, cfg)
-        loader.set_armature(cfg.armature)
+        loader = URDFtoMuJoCoLoader(mjcf, mjcf_cfg)
+        loader.set_armature(mjcf_cfg.armature)
         loader.add_sites_for_missing_joints(missing_joint_sites)
-        loader.add_framequat_sensors(cfg.framequat_sensors_cfg)
-        loader.add_gyro_sensors(cfg.gyro_sensors_cfg)
+        loader.add_framequat_sensors(mjcf_cfg.framequat_sensors_cfg)
+        loader.add_gyro_sensors(mjcf_cfg.gyro_sensors_cfg)
         return loader
 
     @staticmethod

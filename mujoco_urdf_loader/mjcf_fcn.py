@@ -1,5 +1,5 @@
 import xml.etree.ElementTree as ET
-from typing import List
+from typing import Dict, List
 
 
 def add_new_worldbody(
@@ -457,4 +457,64 @@ def add_sphere(
     geom.set("rgba", f"{rgba[0]} {rgba[1]} {rgba[2]} {rgba[3]}")
     geom.set("mass", f"{mass}")
 
+    return mjcf
+
+
+def convert_hinge_to_ball_joints(
+    mjcf: ET.Element,
+    ball_joint_map: Dict[str, str],
+    damping: float = 0.01,
+    armature: float = 0.001,
+    frictionloss: float = 0.001,
+) -> ET.Element:
+    """Convert placeholder hinge joints into MuJoCo ball joints.
+
+    After collapsing 3-revolute spherical triplets in the URDF, MuJoCo creates
+    regular hinge joints for them.  This function post-processes the MJCF to
+    turn those hinges into ``type="ball"`` joints, removes hinge-only
+    attributes, and sets damping / armature for numerical stability.
+
+    Args:
+        mjcf: The MJCF root element (modified in-place).
+        ball_joint_map: Mapping from the placeholder joint name (the former
+            ``_x`` revolute joint name) to the spherical group base name.
+            Produced by
+            :func:`~mujoco_urdf_loader.urdf_fcn.collapse_spherical_revolute_triplets`.
+        damping: Viscous damping coefficient applied to each ball joint.
+            A small positive value prevents unconstrained free-spin that
+            causes simulation instability.  Default ``0.01``.
+        armature: Rotor inertia (diagonal) added to each ball joint.
+            Default ``0.001``.
+        frictionloss: Friction loss applied to each ball joint.
+            Default ``0.001``.
+
+    Returns:
+        The modified MJCF element.
+
+    Raises:
+        ValueError: If a placeholder joint name is not found in the MJCF.
+    """
+    for placeholder_name, base_name in ball_joint_map.items():
+        joint_elem = mjcf.find(f".//joint[@name='{placeholder_name}']")
+        if joint_elem is None:
+            raise ValueError(
+                f"Placeholder joint '{placeholder_name}' for spherical group "
+                f"'{base_name}' not found in the MJCF model."
+            )
+
+        # Rename and switch type
+        joint_elem.set("name", f"{base_name}_ball")
+        joint_elem.set("type", "ball")
+
+        # Remove attributes that are only meaningful for hinge / slide joints.
+        # ``limited`` / ``range`` from revolute joints are invalid for ball
+        # joints (ball range[0] must be 0 and represents max deflection).
+        for attr in ("axis", "ref", "limited", "range"):
+            if attr in joint_elem.attrib:
+                del joint_elem.attrib[attr]
+
+        # Set damping and armature for numerical stability
+        joint_elem.set("damping", str(damping))
+        joint_elem.set("armature", str(armature))
+        joint_elem.set("frictionloss", str(frictionloss))
     return mjcf
