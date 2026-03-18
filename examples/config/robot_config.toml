@@ -1,0 +1,43 @@
+[robot]
+
+name = "lower_body_qdd_rsu"
+
+# List of joints to control
+controlled_joints = [
+    "l_hip_pitch",
+    "r_hip_pitch",
+    "l_hip_roll",
+    "r_hip_roll",
+    "l_hip_yaw",
+    "r_hip_yaw",
+    "l_knee",
+    "r_knee",
+    "l_motor_1",
+    "r_motor_1",
+    "l_motor_2",
+    "r_motor_2",   
+    "l_ankle_pitch",
+    "r_ankle_pitch",
+    "l_ankle_roll",
+    "r_ankle_roll",
+]
+    
+
+# Control mode for the joints
+control_mode = "TORQUE"
+
+# Stiffness for each joint (0.0 for all joints)
+stiffness = [
+    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    
+    
+  
+]
+
+# Damping for each joint (0.0 for all joints)
+damping = [
+    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,  
+  
+]

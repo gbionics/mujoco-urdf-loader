@@ -166,6 +166,7 @@ def get_joint_limits(robot_urdf: ET.Element) -> dict:
 
     return joint_limits
 
+
 def get_joint_couplings(robot_urdf: ET.Element) -> dict:
     """
     Get the joint couplings from the urdf.
@@ -186,3 +187,143 @@ def get_joint_couplings(robot_urdf: ET.Element) -> dict:
             }
 
     return joint_couplings
+
+
+def _is_zero_mass_link(link: ET.Element, tolerance: float = 1e-6) -> bool:
+    """Check if a URDF link has zero or negligible mass."""
+    inertial = link.find("inertial")
+    if inertial is None:
+        return True
+    mass_elem = inertial.find("mass")
+    if mass_elem is None:
+        return True
+    return abs(float(mass_elem.get("value", "0"))) < tolerance
+
+
+def set_min_mass_for_zero_mass_links(
+    robot_urdf: ET.Element,
+    min_mass: float = 1e-8,
+    min_inertia: float = 1e-10,
+    zero_mass_tolerance: float = 1e-6,
+) -> ET.Element:
+    """Set a tiny mass/inertia on zero-mass links so MuJoCo accepts them.
+
+    MuJoCo requires moving bodies to have mass > mjMINVAL.  The zero-mass
+    dummy links created for spherical-joint chains need a small value to
+    survive compilation.
+
+    Args:
+        robot_urdf: Root ``<robot>`` element (modified in-place).
+        min_mass: Mass value to assign.
+        min_inertia: Diagonal inertia value to assign.
+        zero_mass_tolerance: Threshold below which a link is considered zero-mass.
+
+    Returns:
+        The same ``robot_urdf`` element (modified in-place).
+    """
+    for link in robot_urdf.findall("link"):
+        if not _is_zero_mass_link(link, zero_mass_tolerance):
+            continue
+        inertial = link.find("inertial")
+        if inertial is None:
+            inertial = ET.SubElement(link, "inertial")
+        mass_elem = inertial.find("mass")
+        if mass_elem is None:
+            mass_elem = ET.SubElement(inertial, "mass")
+        mass_elem.set("value", str(min_mass))
+        inertia_elem = inertial.find("inertia")
+        if inertia_elem is None:
+            inertia_elem = ET.SubElement(inertial, "inertia")
+        val = str(min_inertia)
+        for attr in ("ixx", "iyy", "izz"):
+            inertia_elem.set(attr, val)
+        for attr in ("ixy", "ixz", "iyz"):
+            inertia_elem.set(attr, "0")
+    return robot_urdf
+
+
+def find_spherical_revolute_joints_in_urdf(
+    robot_urdf: ET.Element, zero_mass_tolerance: float = 1e-6
+) -> List[str]:
+    """Detect 3-revolute spherical joint chains in a URDF and return joint names.
+
+    Searches for chains of 3 consecutive revolute joints where the 2
+    intermediate links have zero mass (the pattern produced by
+    ``convert_fixed_to_spherical`` / iDynTree convention)::
+
+        parent_link -[rev_x]-> fake_link1 (0 mass) -[rev_y]-> fake_link2 (0 mass) -[rev_z]-> child_link
+
+    Args:
+        robot_urdf: Root ``<robot>`` element of the URDF.
+        zero_mass_tolerance: Mass threshold for zero-mass detection.
+
+    Returns:
+        Flat list of all revolute joint names that belong to spherical chains
+        (groups of 3).
+    """
+    # Build lookup tables
+    links = {link.get("name"): link for link in robot_urdf.findall("link")}
+    # Map child_link_name -> joint element
+    child_to_joint = {}
+    for joint in robot_urdf.findall("joint"):
+        child_name = joint.find("child").get("link")
+        child_to_joint[child_name] = joint
+    # Map parent_link_name -> list of joint elements
+    parent_to_joints = {}
+    for joint in robot_urdf.findall("joint"):
+        parent_name = joint.find("parent").get("link")
+        parent_to_joints.setdefault(parent_name, []).append(joint)
+
+    spherical_joint_names = []
+    visited_joints = set()
+
+    for joint1 in robot_urdf.findall("joint"):
+        j1_name = joint1.get("name")
+        if j1_name in visited_joints:
+            continue
+        if joint1.get("type") != "revolute":
+            continue
+
+        # First fake link (child of joint1)
+        fake1_name = joint1.find("child").get("link")
+        fake1 = links.get(fake1_name)
+        if fake1 is None or not _is_zero_mass_link(fake1, zero_mass_tolerance):
+            continue
+        # fake1 must have no visual/collision
+        if fake1.find("visual") is not None or fake1.find("collision") is not None:
+            continue
+
+        # Joint2: must be the only revolute joint parented by fake1
+        children_of_fake1 = [
+            j
+            for j in parent_to_joints.get(fake1_name, [])
+            if j.get("type") == "revolute"
+        ]
+        if len(children_of_fake1) != 1:
+            continue
+        joint2 = children_of_fake1[0]
+
+        # Second fake link (child of joint2)
+        fake2_name = joint2.find("child").get("link")
+        fake2 = links.get(fake2_name)
+        if fake2 is None or not _is_zero_mass_link(fake2, zero_mass_tolerance):
+            continue
+        if fake2.find("visual") is not None or fake2.find("collision") is not None:
+            continue
+
+        # Joint3: must be the only revolute joint parented by fake2
+        children_of_fake2 = [
+            j
+            for j in parent_to_joints.get(fake2_name, [])
+            if j.get("type") == "revolute"
+        ]
+        if len(children_of_fake2) != 1:
+            continue
+        joint3 = children_of_fake2[0]
+
+        # Record the 3 joint names
+        names = [j1_name, joint2.get("name"), joint3.get("name")]
+        visited_joints.update(names)
+        spherical_joint_names.extend(names)
+
+    return spherical_joint_names
