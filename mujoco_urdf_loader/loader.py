@@ -15,6 +15,7 @@ from mujoco_urdf_loader.mjcf_fcn import (
     separate_left_right_collision_groups,
     add_framequat_sensor,
     add_gyro_sensor,
+    add_camera_to_site,
     convert_hinge_to_ball_joints,
 )
 from mujoco_urdf_loader.urdf_fcn import (
@@ -44,6 +45,11 @@ class GyroSensorCfg:
     site: str
     name: str = None
 
+@dataclasses.dataclass
+class CameraCfg:
+    site: str
+    fovy: float
+    name: str
 
 @dataclasses.dataclass
 class URDFtoMuJoCoLoaderCfg:
@@ -55,6 +61,7 @@ class URDFtoMuJoCoLoaderCfg:
     all_missing_joints_as_sites: bool = False
     framequat_sensors_cfg: Union[None, List[Union[FrameQuatSensorCfg, Dict[str, Any]]]] = None
     gyro_sensors_cfg: Union[None, List[Union[GyroSensorCfg, Dict[str, Any]]]] = None
+    cameras_cfg: Union[None, List[Union[CameraCfg, Dict[str, Any]]]] = None
     ball_joint_damping: float = 0.0
     ball_joint_armature: float = 0.0
     ball_joint_frictionloss: float = 0.0
@@ -179,8 +186,8 @@ class URDFtoMuJoCoLoader:
         loader = URDFtoMuJoCoLoader(mjcf, mjcf_cfg)
         loader.set_armature(mjcf_cfg.armature)
         loader.add_sites_for_missing_joints(missing_joint_sites)
-        loader.add_framequat_sensors(mjcf_cfg.framequat_sensors_cfg)
-        loader.add_gyro_sensors(mjcf_cfg.gyro_sensors_cfg)
+        loader.add_framequat_sensors(cfg.framequat_sensors_cfg)
+        loader.add_gyro_sensors(cfg.gyro_sensors_cfg)
         return loader
 
     @staticmethod
@@ -258,6 +265,44 @@ class URDFtoMuJoCoLoader:
                 self.mjcf,
                 site=normalized_cfg.site,
                 name=normalized_cfg.name,
+            )
+
+    @staticmethod
+    def _normalize_camera_cfg(
+        camera_cfg: Union[CameraCfg, Dict[str, Any]],
+    ) -> CameraCfg:
+        if isinstance(camera_cfg, CameraCfg):
+            return camera_cfg
+
+        if not isinstance(camera_cfg, dict):
+            raise TypeError(
+                "Each camera configuration must be a CameraCfg "
+                "or a dict with keys name, site (or link), and fovy."
+            )
+
+        name = camera_cfg.get("name")
+        site = camera_cfg.get("site", camera_cfg.get("link"))
+        fovy = camera_cfg.get("fovy")
+
+        if name is None or site is None:
+            raise ValueError("Each camera configuration requires name and site (or link).")
+
+        return CameraCfg(name=name, site=site, fovy=fovy)
+
+    def add_cameras(
+        self,
+        camera_cfg: Union[None, List[Union[CameraCfg, Dict[str, Any]]]] = None,
+    ):
+        if camera_cfg is None:
+            return
+
+        for camera in camera_cfg:
+            normalized_cfg = self._normalize_camera_cfg(camera)
+            add_camera_to_site(
+                self.mjcf,
+                name=normalized_cfg.name,
+                site=normalized_cfg.site,
+                fovy=normalized_cfg.fovy,
             )
 
     @staticmethod

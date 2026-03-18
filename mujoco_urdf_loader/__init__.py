@@ -4,5 +4,6 @@ from .loader import (
     GyroSensorCfg,
     URDFtoMuJoCoLoader,
     URDFtoMuJoCoLoaderCfg,
+    CameraCfg,
 )
 from .wrapper import MujocoWrapper
