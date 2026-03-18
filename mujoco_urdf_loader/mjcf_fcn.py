@@ -1,5 +1,6 @@
 import xml.etree.ElementTree as ET
 from typing import List
+from scipy.spatial.transform import Rotation
 
 
 def add_new_worldbody(
@@ -197,6 +198,62 @@ def add_gyro_sensor(mjcf: ET.Element, site: str, name: str = None) -> ET.Element
     gyro.set("site", site)
 
     return mjcf
+
+def add_camera_to_site(mjcf: ET.Element, name: str, site: str, fovy: float) -> ET.Element:
+    """Add a camera tag to the site.
+
+    Args:
+        mjcf (ET.Element): The mjcf file.
+        name (str): The name of the camera.
+        site (str): The site to add the camera tag to.
+        fovy (float): The field of view of the camera (deg).
+    """
+    # look for the site in the mjcf file and retrieve the position and orientation of the site
+    site_element = mjcf.find(f".//site[@name='{site}']")
+    if site_element is None:
+        raise ValueError(f"Site {site} not found in the mjcf file.")
+    pos = site_element.attrib["pos"]
+    quat = site_element.attrib["quat"]
+
+    q_site_wxyz = list(map(float, quat.split()))
+    if len(q_site_wxyz) != 4:
+        raise ValueError("Quaternion must have exactly 4 components in [w x y z] format.")
+
+    # scipy uses [x, y, z, w], MuJoCo uses [w, x, y, z]
+    r_site = Rotation.from_quat([q_site_wxyz[1], q_site_wxyz[2], q_site_wxyz[3], q_site_wxyz[0]])
+    # MuJoCo cameras look along the local -Z axis, while site/tool frames are
+    # typically defined with +Z as forward. Rotate 180° about X so the camera
+    # optical axis aligns with the intended site forward direction.
+    r_x180 = Rotation.from_euler("x", 180, degrees=True)
+    r_camera = r_site * r_x180
+    q_camera_xyzw = r_camera.as_quat()
+    camera_quat = f"{q_camera_xyzw[3]} {q_camera_xyzw[0]} {q_camera_xyzw[1]} {q_camera_xyzw[2]}"
+
+    # create the camera tag as a sibling right after the site element
+    camera = ET.Element("camera")
+    camera.set("name", name)
+    camera.set("pos", pos)
+    camera.set("quat", camera_quat)
+    camera.set("fovy", str(fovy))
+
+    # xml.etree.ElementTree.Element has no addnext(); find parent and insert manually
+    parent = None
+    for elem in mjcf.iter():
+        for child in list(elem):
+            if child is site_element:
+                parent = elem
+                break
+        if parent is not None:
+            break
+
+    if parent is None:
+        raise ValueError(f"Parent of site {site} not found in the mjcf file.")
+
+    children = list(parent)
+    site_idx = children.index(site_element)
+    parent.insert(site_idx + 1, camera)
+    return mjcf
+
 
 def add_framequat_sensor(mjcf: ET.Element, objname: str, objtype: str = 'site', name: str = None) -> ET.Element:
     """Add a frame quaternion sensor to the body.
