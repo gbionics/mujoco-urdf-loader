@@ -371,6 +371,20 @@ def set_collision_groups(
 
     return mjcf
 
+def update_meshdir(mjcf: ET.Element, meshdir: str) -> ET.Element:
+    """Set the meshdir in the mjcf file.
+
+    Args:
+        mjcf (ET.Element): The mjcf file.
+        meshdir (str): The mesh directory to set in the mjcf file.
+    """
+
+    compiler = mjcf.find(".//compiler")
+    if compiler is None:
+        compiler = ET.SubElement(mjcf, "compiler")
+    compiler.set("meshdir", meshdir)
+
+    return mjcf
 
 def separate_left_right_collision_groups(
     mjcf: ET.Element,
