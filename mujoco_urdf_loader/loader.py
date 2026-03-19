@@ -16,6 +16,7 @@ from mujoco_urdf_loader.mjcf_fcn import (
     add_framequat_sensor,
     add_gyro_sensor,
     add_camera_to_site,
+    add_equality_constraints_for_sites,
     convert_hinge_to_ball_joints,
 )
 from mujoco_urdf_loader.urdf_fcn import (
@@ -52,6 +53,13 @@ class CameraCfg:
     name: str
 
 @dataclasses.dataclass
+class EqualityConstraintCfg:
+    """Configuration for a connect/weld equality constraint between two sites."""
+    site1: str
+    site2: str
+    constraint_type: str = "connect"
+
+@dataclasses.dataclass
 class URDFtoMuJoCoLoaderCfg:
     controlled_joints: List[str]
     control_modes: Union[None, List[ControlMode]] = None
@@ -62,6 +70,7 @@ class URDFtoMuJoCoLoaderCfg:
     framequat_sensors_cfg: Union[None, List[Union[FrameQuatSensorCfg, Dict[str, Any]]]] = None
     gyro_sensors_cfg: Union[None, List[Union[GyroSensorCfg, Dict[str, Any]]]] = None
     cameras_cfg: Union[None, List[Union[CameraCfg, Dict[str, Any]]]] = None
+    equality_constraints_cfg: Union[None, List[Union[EqualityConstraintCfg, Dict[str, Any]]]] = None
     ball_joint_damping: float = 0.0
     ball_joint_armature: float = 0.0
     ball_joint_frictionloss: float = 0.0
@@ -168,6 +177,7 @@ class URDFtoMuJoCoLoader:
                 all_missing_joints_as_sites=cfg.all_missing_joints_as_sites,
                 framequat_sensors_cfg=cfg.framequat_sensors_cfg,
                 gyro_sensors_cfg=cfg.gyro_sensors_cfg,
+                equality_constraints_cfg=cfg.equality_constraints_cfg,
             )
         else:
             mjcf_cfg = cfg
@@ -189,6 +199,7 @@ class URDFtoMuJoCoLoader:
         loader.add_framequat_sensors(cfg.framequat_sensors_cfg)
         loader.add_gyro_sensors(cfg.gyro_sensors_cfg)
         loader.add_cameras(cfg.cameras_cfg)
+        loader.add_equality_constraints(cfg.equality_constraints_cfg)
         return loader
 
     @staticmethod
@@ -304,6 +315,66 @@ class URDFtoMuJoCoLoader:
                 name=normalized_cfg.name,
                 site=normalized_cfg.site,
                 fovy=normalized_cfg.fovy,
+            )
+
+    @staticmethod
+    def _normalize_equality_constraint_cfg(
+        eq_cfg: Union[EqualityConstraintCfg, Dict[str, Any]],
+    ) -> EqualityConstraintCfg:
+        if isinstance(eq_cfg, EqualityConstraintCfg):
+            return eq_cfg
+
+        if not isinstance(eq_cfg, dict):
+            raise TypeError(
+                "Each equality constraint configuration must be an "
+                "EqualityConstraintCfg or a dict with keys site1 and site2."
+            )
+
+        site1 = eq_cfg.get("site1")
+        site2 = eq_cfg.get("site2")
+        constraint_type = eq_cfg.get("constraint_type", "connect")
+
+        if site1 is None or site2 is None:
+            raise ValueError(
+                "Each equality constraint configuration requires site1 and site2."
+            )
+
+        return EqualityConstraintCfg(
+            site1=site1, site2=site2, constraint_type=constraint_type,
+        )
+
+    def add_equality_constraints(
+        self,
+        equality_constraints_cfg: Union[
+            None, List[Union[EqualityConstraintCfg, Dict[str, Any]]]
+        ] = None,
+    ):
+        """Add equality constraints (connect/weld) to the MJCF model.
+
+        Uses the existing ``add_equality_constraints_for_sites`` helper to
+        create ``<connect>`` or ``<weld>`` elements inside ``<equality>``.
+
+        Args:
+            equality_constraints_cfg: List of ``EqualityConstraintCfg``
+                dataclasses or dicts with keys ``site1``, ``site2``, and
+                optionally ``constraint_type`` (default ``"connect"``).
+                If ``None``, no constraints are added.
+        """
+        if equality_constraints_cfg is None:
+            return
+
+        # Group by constraint_type so we can call the helper once per type
+        by_type: Dict[str, List[tuple]] = {}
+        for cfg in equality_constraints_cfg:
+            normalized = self._normalize_equality_constraint_cfg(cfg)
+            ctype = normalized.constraint_type
+            by_type.setdefault(ctype, []).append(
+                (normalized.site1, normalized.site2)
+            )
+
+        for constraint_type, site_pairs in by_type.items():
+            add_equality_constraints_for_sites(
+                self.mjcf, site_pairs, constraint_type=constraint_type,
             )
 
     @staticmethod
