@@ -1,8 +1,10 @@
 import xml.etree.ElementTree as ET
 
 import pytest
+import resolve_robotics_uri_py as rru
 
 from mujoco_urdf_loader.loader import FrameQuatSensorCfg, URDFtoMuJoCoLoader, URDFtoMuJoCoLoaderCfg
+from mujoco_urdf_loader.urdf_fcn import get_mesh_path
 
 
 def _make_empty_mjcf() -> ET.Element:
@@ -71,3 +73,57 @@ def test_add_framequat_sensors_raises_on_missing_required_fields():
 
     with pytest.raises(ValueError):
         loader.add_framequat_sensors([{"objname": "imu_frame", "name": "imu_quat"}])
+
+
+def test_add_framequat_sensors_to_ergocub_sn001():
+    urdf_root = str(rru.resolve_robotics_uri("package://ergoCub/robots/ergoCubSN001/model.urdf"))
+    controlled_joints = [
+        "l_hip_pitch",
+        "r_hip_pitch",
+        "torso_roll",
+        "l_hip_roll",
+        "r_hip_roll",
+        "torso_pitch",
+        "torso_yaw",
+        "l_hip_yaw",
+        "r_hip_yaw",
+        "l_shoulder_pitch",
+        "neck_pitch",
+        "r_shoulder_pitch",
+        "l_knee",
+        "r_knee",
+        "l_shoulder_roll",
+        "neck_roll",
+        "r_shoulder_roll",
+        "l_ankle_pitch",
+        "r_ankle_pitch",
+        "neck_yaw",
+        "l_ankle_roll",
+        "r_ankle_roll",
+        "l_shoulder_yaw",
+        "r_shoulder_yaw",
+        "l_elbow",
+        "r_elbow",
+    ]
+    mesh_path = get_mesh_path(ET.parse(urdf_root).getroot())
+    framequat_sensors_cfg = [
+        FrameQuatSensorCfg(objname="realsense_depth_frame", objtype="site", name="realsense_depth_quat"),
+        FrameQuatSensorCfg(objname="realsense_rgb_frame", objtype="site", name="realsense_rgb_quat"),
+    ]
+    cfg = URDFtoMuJoCoLoaderCfg(
+        controlled_joints=controlled_joints,
+        framequat_sensors_cfg=framequat_sensors_cfg,
+        all_missing_joints_as_sites=True,
+    )
+    loader = URDFtoMuJoCoLoader.load_urdf(urdf_root, mesh_path, cfg)
+
+    depth_sensor = loader.mjcf.find(".//sensor/framequat[@name='realsense_depth_quat']")
+    rgb_sensor = loader.mjcf.find(".//sensor/framequat[@name='realsense_rgb_quat']")
+
+    assert depth_sensor is not None
+    assert depth_sensor.attrib["objtype"] == "site"
+    assert depth_sensor.attrib["objname"] == "realsense_depth_frame"
+
+    assert rgb_sensor is not None
+    assert rgb_sensor.attrib["objtype"] == "site"
+    assert rgb_sensor.attrib["objname"] == "realsense_rgb_frame"

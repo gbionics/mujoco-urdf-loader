@@ -141,11 +141,6 @@ def test_ergocub_sn001_missing_joint_sites():
     cfg = URDFtoMuJoCoLoaderCfg(controlled_joints, all_missing_joints_as_sites=True)
     loader = URDFtoMuJoCoLoader.load_urdf(urdf_root, mesh_path, cfg)
 
-    xml_path = "model.xml"
-    with open(xml_path, "w") as f:
-        f.write(loader.get_mjcf_string(pretty=True))
-    print(f"MuJoCo XML model saved to: {xml_path}")
-
     mjcf_string = loader.get_mjcf_string()
 
     # ---- MuJoCo setup ----
