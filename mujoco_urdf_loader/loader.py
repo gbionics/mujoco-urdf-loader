@@ -188,6 +188,7 @@ class URDFtoMuJoCoLoader:
         loader.add_sites_for_missing_joints(missing_joint_sites)
         loader.add_framequat_sensors(cfg.framequat_sensors_cfg)
         loader.add_gyro_sensors(cfg.gyro_sensors_cfg)
+        loader.add_cameras(cfg.cameras_cfg)
         return loader
 
     @staticmethod
