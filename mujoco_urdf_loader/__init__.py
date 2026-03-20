@@ -1,5 +1,6 @@
 from .loader import (
     ControlMode,
+    EqualityConstraintCfg,
     FrameQuatSensorCfg,
     GyroSensorCfg,
     URDFtoMuJoCoLoader,
