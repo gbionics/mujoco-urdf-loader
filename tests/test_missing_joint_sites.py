@@ -65,7 +65,7 @@ def test_get_missing_joint_sites_all_flag_collects_missing_urdf_links():
     sites = URDFtoMuJoCoLoader.get_missing_joint_sites(
         urdf_root,
         mjcf,
-        controlled_joints=["j1"],
+        observed_joints=["j1"],
         all_missing_joints_as_sites=True,
     )
 
@@ -79,13 +79,13 @@ def test_add_sites_for_missing_joints_handles_nested_lumped_missing_joints():
     fixed_joint_sites = URDFtoMuJoCoLoader.get_missing_joint_sites(
         urdf_root,
         _make_mjcf_with_base_only(),
-        controlled_joints=[],
+        observed_joints=[],
         all_missing_joints_as_sites=True,
     )
 
     fixed_joint_sites = [site for site in fixed_joint_sites if site["name"] == "l2"]
 
-    cfg = URDFtoMuJoCoLoaderCfg(controlled_joints=[])
+    cfg = URDFtoMuJoCoLoaderCfg(observed_joints=[])
     loader = URDFtoMuJoCoLoader(_make_mjcf_with_base_only(), cfg)
 
     loader.add_sites_for_missing_joints(fixed_joint_sites)
@@ -109,7 +109,7 @@ def test_add_sites_for_missing_joints_handles_nested_lumped_missing_joints():
 
 def test_ergocub_sn001_missing_joint_sites():
     urdf_root = str(rru.resolve_robotics_uri("package://ergoCub/robots/ergoCubSN001/model.urdf"))
-    controlled_joints = [
+    observed_joints = [
             "l_hip_pitch",
             "r_hip_pitch",
             "torso_roll",
@@ -138,7 +138,10 @@ def test_ergocub_sn001_missing_joint_sites():
             "r_elbow",
     ]
     mesh_path = get_mesh_path(ET.parse(urdf_root).getroot())
-    cfg = URDFtoMuJoCoLoaderCfg(controlled_joints, all_missing_joints_as_sites=True)
+    cfg = URDFtoMuJoCoLoaderCfg(
+        observed_joints=observed_joints,
+        all_missing_joints_as_sites=True,
+    )
     loader = URDFtoMuJoCoLoader.load_urdf(urdf_root, mesh_path, cfg)
 
     mjcf_string = loader.get_mjcf_string()
@@ -149,7 +152,7 @@ def test_ergocub_sn001_missing_joint_sites():
 
     # ---- iDynTree reduced-model setup (using controlled joints) ----
     idt_loader = idyntree.ModelLoader()
-    assert idt_loader.loadReducedModelFromFile(urdf_root, controlled_joints)
+    assert idt_loader.loadReducedModelFromFile(urdf_root, observed_joints)
     reduced_model = idt_loader.model()
 
     kin_dyn = idyntree.KinDynComputations()
@@ -159,7 +162,7 @@ def test_ergocub_sn001_missing_joint_sites():
 
     # Map each controlled joint name to its DOF index in the reduced model
     controlled_dof_indices = {}
-    for jname in controlled_joints:
+    for jname in observed_joints:
         jidx = reduced_model.getJointIndex(jname)
         assert jidx >= 0, f"Joint {jname} not found in the reduced model"
         controlled_dof_indices[jname] = reduced_model.getJoint(jidx).getDOFsOffset()
@@ -173,8 +176,8 @@ def test_ergocub_sn001_missing_joint_sites():
     assert len(sites_to_check) > 0, "No sites with matching iDynTree frames found"
 
     # Get joint limits from MuJoCo for uniform sampling
-    joint_limits = np.zeros((len(controlled_joints), 2))
-    for i, jname in enumerate(controlled_joints):
+    joint_limits = np.zeros((len(observed_joints), 2))
+    for i, jname in enumerate(observed_joints):
         jid = mj_model.joint(jname).id
         if mj_model.jnt_limited[jid]:
             joint_limits[i] = mj_model.jnt_range[jid]
@@ -192,7 +195,7 @@ def test_ergocub_sn001_missing_joint_sites():
         # ---- iDynTree: set reduced-model state ----
         s = idyntree.VectorDynSize(n_reduced_dofs)
         s.zero()
-        for i, jname in enumerate(controlled_joints):
+        for i, jname in enumerate(observed_joints):
             s.setVal(controlled_dof_indices[jname], s_ctrl[i])
 
         ds = idyntree.VectorDynSize(n_reduced_dofs)
@@ -209,7 +212,7 @@ def test_ergocub_sn001_missing_joint_sites():
         # ---- MuJoCo: set qpos and run forward kinematics ----
         mj_data.qpos[:] = 0.0
         mj_data.qpos[3] = 1.0  # identity quaternion (w, x, y, z)
-        for i, jname in enumerate(controlled_joints):
+        for i, jname in enumerate(observed_joints):
             jid = mj_model.joint(jname).id
             addr = mj_model.jnt_qposadr[jid]
             mj_data.qpos[addr] = s_ctrl[i]
