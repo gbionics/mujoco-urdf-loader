@@ -19,7 +19,7 @@ def _make_empty_mjcf() -> ET.Element:
 
 
 def test_add_gyro_sensors_none_keeps_model_unchanged():
-    loader = URDFtoMuJoCoLoader(_make_empty_mjcf(), URDFtoMuJoCoLoaderCfg(controlled_joints=[]))
+    loader = URDFtoMuJoCoLoader(_make_empty_mjcf(), URDFtoMuJoCoLoaderCfg(observed_joints=[]))
 
     loader.add_gyro_sensors(None)
 
@@ -27,7 +27,7 @@ def test_add_gyro_sensors_none_keeps_model_unchanged():
 
 
 def test_add_gyro_sensors_accepts_list_of_dataclasses():
-    loader = URDFtoMuJoCoLoader(_make_empty_mjcf(), URDFtoMuJoCoLoaderCfg(controlled_joints=[]))
+    loader = URDFtoMuJoCoLoader(_make_empty_mjcf(), URDFtoMuJoCoLoaderCfg(observed_joints=[]))
 
     loader.add_gyro_sensors(
         [
@@ -47,7 +47,7 @@ def test_add_gyro_sensors_accepts_list_of_dataclasses():
 
 
 def test_add_gyro_sensors_accepts_dict():
-    loader = URDFtoMuJoCoLoader(_make_empty_mjcf(), URDFtoMuJoCoLoaderCfg(controlled_joints=[]))
+    loader = URDFtoMuJoCoLoader(_make_empty_mjcf(), URDFtoMuJoCoLoaderCfg(observed_joints=[]))
 
     loader.add_gyro_sensors(
         [
@@ -64,7 +64,7 @@ def test_add_gyro_sensors_accepts_dict():
 
 
 def test_add_gyro_sensors_accepts_dict_with_objname_alias():
-    loader = URDFtoMuJoCoLoader(_make_empty_mjcf(), URDFtoMuJoCoLoaderCfg(controlled_joints=[]))
+    loader = URDFtoMuJoCoLoader(_make_empty_mjcf(), URDFtoMuJoCoLoaderCfg(observed_joints=[]))
 
     loader.add_gyro_sensors(
         [
@@ -82,7 +82,7 @@ def test_add_gyro_sensors_accepts_dict_with_objname_alias():
 
 def test_add_gyro_sensors_to_ergocub_sn001():
     urdf_root = str(rru.resolve_robotics_uri("package://ergoCub/robots/ergoCubSN001/model.urdf"))
-    controlled_joints = [
+    observed_joints = [
         "l_hip_pitch",
         "r_hip_pitch",
         "torso_roll",
@@ -116,7 +116,7 @@ def test_add_gyro_sensors_to_ergocub_sn001():
         GyroSensorCfg(site="realsense_rgb_frame", name="realsense_rgb_gyro"),
     ]
     cfg = URDFtoMuJoCoLoaderCfg(
-        controlled_joints=controlled_joints,
+        observed_joints=observed_joints,
         gyro_sensors_cfg=gyro_sensors_cfg,
         all_missing_joints_as_sites=True,
     )

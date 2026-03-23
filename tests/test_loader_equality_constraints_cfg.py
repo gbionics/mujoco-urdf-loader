@@ -28,7 +28,7 @@ def _make_empty_mjcf() -> ET.Element:
 
 def test_add_equality_constraints_none_keeps_model_unchanged():
     loader = URDFtoMuJoCoLoader(
-        _make_empty_mjcf(), URDFtoMuJoCoLoaderCfg(controlled_joints=[])
+        _make_empty_mjcf(), URDFtoMuJoCoLoaderCfg(observed_joints=[])
     )
 
     loader.add_equality_constraints(None)
@@ -38,7 +38,7 @@ def test_add_equality_constraints_none_keeps_model_unchanged():
 
 def test_add_equality_constraints_accepts_list_of_dataclasses():
     loader = URDFtoMuJoCoLoader(
-        _make_empty_mjcf(), URDFtoMuJoCoLoaderCfg(controlled_joints=[])
+        _make_empty_mjcf(), URDFtoMuJoCoLoaderCfg(observed_joints=[])
     )
 
     loader.add_equality_constraints(
@@ -53,7 +53,7 @@ def test_add_equality_constraints_accepts_list_of_dataclasses():
 
 def test_add_equality_constraints_accepts_dict():
     loader = URDFtoMuJoCoLoader(
-        _make_empty_mjcf(), URDFtoMuJoCoLoaderCfg(controlled_joints=[])
+        _make_empty_mjcf(), URDFtoMuJoCoLoaderCfg(observed_joints=[])
     )
 
     loader.add_equality_constraints(
@@ -68,7 +68,7 @@ def test_add_equality_constraints_accepts_dict():
 
 def test_add_equality_constraints_multiple():
     loader = URDFtoMuJoCoLoader(
-        _make_empty_mjcf(), URDFtoMuJoCoLoaderCfg(controlled_joints=[])
+        _make_empty_mjcf(), URDFtoMuJoCoLoaderCfg(observed_joints=[])
     )
 
     loader.add_equality_constraints(
@@ -86,7 +86,7 @@ def test_add_equality_constraints_multiple():
 
 def test_add_equality_constraints_weld_type():
     loader = URDFtoMuJoCoLoader(
-        _make_empty_mjcf(), URDFtoMuJoCoLoaderCfg(controlled_joints=[])
+        _make_empty_mjcf(), URDFtoMuJoCoLoaderCfg(observed_joints=[])
     )
 
     loader.add_equality_constraints(
@@ -101,7 +101,7 @@ def test_add_equality_constraints_weld_type():
 
 def test_add_equality_constraints_raises_on_missing_fields():
     loader = URDFtoMuJoCoLoader(
-        _make_empty_mjcf(), URDFtoMuJoCoLoaderCfg(controlled_joints=[])
+        _make_empty_mjcf(), URDFtoMuJoCoLoaderCfg(observed_joints=[])
     )
 
     with pytest.raises(ValueError):
@@ -110,7 +110,7 @@ def test_add_equality_constraints_raises_on_missing_fields():
 
 def test_add_equality_constraints_raises_on_invalid_type():
     loader = URDFtoMuJoCoLoader(
-        _make_empty_mjcf(), URDFtoMuJoCoLoaderCfg(controlled_joints=[])
+        _make_empty_mjcf(), URDFtoMuJoCoLoaderCfg(observed_joints=[])
     )
 
     with pytest.raises(TypeError):

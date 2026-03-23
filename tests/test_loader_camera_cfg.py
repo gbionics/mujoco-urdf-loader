@@ -24,7 +24,7 @@ def _make_empty_mjcf() -> ET.Element:
 
 
 def test_add_cameras_none_keeps_model_unchanged():
-    loader = URDFtoMuJoCoLoader(_make_empty_mjcf(), URDFtoMuJoCoLoaderCfg(controlled_joints=[]))
+    loader = URDFtoMuJoCoLoader(_make_empty_mjcf(), URDFtoMuJoCoLoaderCfg(observed_joints=[]))
 
     loader.add_cameras(None)
 
@@ -32,7 +32,7 @@ def test_add_cameras_none_keeps_model_unchanged():
 
 
 def test_add_cameras_accepts_list_of_dataclasses():
-    loader = URDFtoMuJoCoLoader(_make_empty_mjcf(), URDFtoMuJoCoLoaderCfg(controlled_joints=[]))
+    loader = URDFtoMuJoCoLoader(_make_empty_mjcf(), URDFtoMuJoCoLoaderCfg(observed_joints=[]))
 
     loader.add_cameras(
         [
@@ -52,7 +52,7 @@ def test_add_cameras_accepts_list_of_dataclasses():
 
 
 def test_add_cameras_accepts_dict_with_site_key():
-    loader = URDFtoMuJoCoLoader(_make_empty_mjcf(), URDFtoMuJoCoLoaderCfg(controlled_joints=[]))
+    loader = URDFtoMuJoCoLoader(_make_empty_mjcf(), URDFtoMuJoCoLoaderCfg(observed_joints=[]))
 
     loader.add_cameras(
         [
@@ -70,7 +70,7 @@ def test_add_cameras_accepts_dict_with_site_key():
 
 
 def test_add_cameras_accepts_dict_with_link_alias():
-    loader = URDFtoMuJoCoLoader(_make_empty_mjcf(), URDFtoMuJoCoLoaderCfg(controlled_joints=[]))
+    loader = URDFtoMuJoCoLoader(_make_empty_mjcf(), URDFtoMuJoCoLoaderCfg(observed_joints=[]))
 
     loader.add_cameras(
         [
@@ -88,14 +88,14 @@ def test_add_cameras_accepts_dict_with_link_alias():
 
 
 def test_add_cameras_raises_on_missing_required_fields():
-    loader = URDFtoMuJoCoLoader(_make_empty_mjcf(), URDFtoMuJoCoLoaderCfg(controlled_joints=[]))
+    loader = URDFtoMuJoCoLoader(_make_empty_mjcf(), URDFtoMuJoCoLoaderCfg(observed_joints=[]))
 
     with pytest.raises(ValueError):
         loader.add_cameras([{"name": "root_depth_camera", "fovy": 60.0}])
 
 def test_add_cameras_to_ergocub_sn001():
     urdf_root = str(rru.resolve_robotics_uri("package://ergoCub/robots/ergoCubSN001/model.urdf"))
-    controlled_joints = [
+    observed_joints = [
             "l_hip_pitch",
             "r_hip_pitch",
             "torso_roll",
@@ -129,7 +129,7 @@ def test_add_cameras_to_ergocub_sn001():
         CameraCfg(name="root_rgb_camera", site="realsense_rgb_frame", fovy=75.0),
     ]
     cfg = URDFtoMuJoCoLoaderCfg(
-        controlled_joints=controlled_joints,
+        observed_joints=observed_joints,
         cameras_cfg=cameras_cfg,
         all_missing_joints_as_sites=True,
     )

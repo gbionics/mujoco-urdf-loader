@@ -21,7 +21,6 @@ from mujoco_urdf_loader.mjcf_fcn import (
 )
 from mujoco_urdf_loader.urdf_fcn import (
     add_mujoco_element,
-    get_mesh_path,
     remove_gazebo_elements,
     detect_spherical_joint_groups,
     collapse_spherical_revolute_triplets,
@@ -61,10 +60,13 @@ class EqualityConstraintCfg:
 
 @dataclasses.dataclass
 class URDFtoMuJoCoLoaderCfg:
-    controlled_joints: List[str]
+    observed_joints: Union[None, List[str]] = None
+    actuated_joints: Union[None, List[str]] = None
     control_modes: Union[None, List[ControlMode]] = None
     stiffness: Union[None, List[float]] = None
     damping: Union[None, List[float]] = None
+    joint_damping: Union[None, List[float]] = None
+    joint_frictionloss: Union[None, List[float]] = None
     armature: Union[None, List[float]] = None
     all_missing_joints_as_sites: bool = False
     framequat_sensors_cfg: Union[None, List[Union[FrameQuatSensorCfg, Dict[str, Any]]]] = None
@@ -83,15 +85,232 @@ class URDFtoMuJoCoLoader:
 
         Args:
             mjcf (str): The MuJoCo string.
-            joints (List[str]): The list of joints to command.
+            cfg (URDFtoMuJoCoLoaderCfg): Loader configuration.
         """
+        normalized_cfg = self._normalize_cfg(cfg)
+
         self.mjcf = mjcf
-        self.controlled_joints = cfg.controlled_joints
+        self.observed_joints = normalized_cfg.observed_joints
+        self.actuated_joints = normalized_cfg.actuated_joints
+
+        self.control_mode = {
+            joint: mode
+            for joint, mode in zip(self.actuated_joints, normalized_cfg.control_modes)
+        }
+
+        self.set_observed_joint_dynamics(
+            damping=normalized_cfg.joint_damping,
+            frictionloss=normalized_cfg.joint_frictionloss,
+        )
+
+        self.set_actuated_joints(
+            normalized_cfg.actuated_joints,
+            stiffness=normalized_cfg.stiffness,
+            damping=normalized_cfg.damping,
+        )
+
+    @staticmethod
+    def _normalize_cfg(cfg: URDFtoMuJoCoLoaderCfg) -> URDFtoMuJoCoLoaderCfg:
+        """Normalize and validate joint/control related arrays."""
+        observed_joints = cfg.observed_joints
+
+        if observed_joints is None:
+            raise ValueError("observed_joints must be provided.")
+        observed_joints = list(observed_joints)
+
+        actuated_joints = (
+            list(cfg.actuated_joints)
+            if cfg.actuated_joints is not None
+            else list(observed_joints)
+        )
+
+        observed_set = set(observed_joints)
+        invalid_actuated = [j for j in actuated_joints if j not in observed_set]
+        if invalid_actuated:
+            raise ValueError(
+                "actuated_joints must be a subset of observed_joints. "
+                f"Invalid entries: {invalid_actuated}"
+            )
+
         if cfg.control_modes is None:
-            self.control_mode = {joint: ControlMode.TORQUE for joint in cfg.controlled_joints}
+            control_modes = [ControlMode.TORQUE] * len(actuated_joints)
         else:
-            self.control_mode = {joint: mode for joint, mode in zip(cfg.controlled_joints, cfg.control_modes)}
-        self.set_controlled_joints(cfg.controlled_joints)
+            if len(cfg.control_modes) != len(actuated_joints):
+                raise ValueError(
+                    f"Length of control_modes ({len(cfg.control_modes)}) must match "
+                    f"the number of actuated_joints ({len(actuated_joints)})."
+                )
+            control_modes = []
+            for mode in cfg.control_modes:
+                if isinstance(mode, ControlMode):
+                    control_modes.append(mode)
+                elif isinstance(mode, str):
+                    mode_upper = mode.upper()
+                    if mode_upper in ControlMode.__members__:
+                        control_modes.append(ControlMode[mode_upper])
+                    else:
+                        try:
+                            control_modes.append(ControlMode(mode.lower()))
+                        except ValueError as exc:
+                            raise ValueError(
+                                f"Unsupported control mode: {mode}"
+                            ) from exc
+                else:
+                    raise TypeError(
+                        "Each control mode must be a ControlMode enum or string."
+                    )
+
+        stiffness = list(cfg.stiffness) if cfg.stiffness is not None else None
+        damping = list(cfg.damping) if cfg.damping is not None else None
+
+        has_position = any(mode == ControlMode.POSITION for mode in control_modes)
+        if has_position:
+            if stiffness is None:
+                raise ValueError(
+                    "stiffness is required when any actuator uses POSITION control mode."
+                )
+            if damping is None:
+                raise ValueError(
+                    "damping is required when any actuator uses POSITION control mode."
+                )
+
+        if stiffness is not None and len(stiffness) != len(actuated_joints):
+            raise ValueError(
+                f"Length of stiffness ({len(stiffness)}) must match "
+                f"the number of actuated_joints ({len(actuated_joints)})."
+            )
+
+        if damping is not None and len(damping) != len(actuated_joints):
+            raise ValueError(
+                f"Length of damping ({len(damping)}) must match "
+                f"the number of actuated_joints ({len(actuated_joints)})."
+            )
+
+        joint_damping = (
+            list(cfg.joint_damping) if cfg.joint_damping is not None else None
+        )
+        if joint_damping is not None and len(joint_damping) != len(observed_joints):
+            raise ValueError(
+                f"Length of joint_damping ({len(joint_damping)}) must match "
+                f"the number of observed_joints ({len(observed_joints)})."
+            )
+
+        joint_frictionloss = (
+            list(cfg.joint_frictionloss)
+            if cfg.joint_frictionloss is not None
+            else None
+        )
+        if joint_frictionloss is not None and len(joint_frictionloss) != len(observed_joints):
+            raise ValueError(
+                f"Length of joint_frictionloss ({len(joint_frictionloss)}) must match "
+                f"the number of observed_joints ({len(observed_joints)})."
+            )
+
+        armature = list(cfg.armature) if cfg.armature is not None else None
+        normalized_armature = None
+        if armature is not None:
+            if len(armature) == len(actuated_joints):
+                # Canonical: one armature value per actuated joint.
+                normalized_armature = list(armature)
+            elif len(armature) == len(observed_joints):
+                # Also accept one value per observed joint and project by name to
+                # the actuated subset.
+                observed_armature = {
+                    joint_name: value
+                    for joint_name, value in zip(observed_joints, armature)
+                }
+                normalized_armature = [
+                    observed_armature[joint_name] for joint_name in actuated_joints
+                ]
+            else:
+                raise ValueError(
+                    f"Length of armature ({len(armature)}) must match "
+                    f"the number of actuated_joints ({len(actuated_joints)}) "
+                    f"or observed_joints ({len(observed_joints)})."
+                )
+
+        return URDFtoMuJoCoLoaderCfg(
+            observed_joints=list(observed_joints),
+            actuated_joints=list(actuated_joints),
+            control_modes=list(control_modes),
+            stiffness=stiffness,
+            damping=damping,
+            joint_damping=joint_damping,
+            joint_frictionloss=joint_frictionloss,
+            armature=normalized_armature,
+            all_missing_joints_as_sites=cfg.all_missing_joints_as_sites,
+            framequat_sensors_cfg=cfg.framequat_sensors_cfg,
+            gyro_sensors_cfg=cfg.gyro_sensors_cfg,
+            cameras_cfg=cfg.cameras_cfg,
+            equality_constraints_cfg=cfg.equality_constraints_cfg,
+            ball_joint_damping=cfg.ball_joint_damping,
+            ball_joint_armature=cfg.ball_joint_armature,
+            ball_joint_frictionloss=cfg.ball_joint_frictionloss,
+        )
+
+    @staticmethod
+    def _filter_cfg_for_removed_joints(
+        cfg: URDFtoMuJoCoLoaderCfg, removed_joints: set
+    ) -> URDFtoMuJoCoLoaderCfg:
+        if not removed_joints:
+            return cfg
+
+        filtered_observed_indices = [
+            i for i, joint in enumerate(cfg.observed_joints) if joint not in removed_joints
+        ]
+        filtered_observed = [cfg.observed_joints[i] for i in filtered_observed_indices]
+
+        filtered_actuated_indices = [
+            i for i, joint in enumerate(cfg.actuated_joints) if joint not in removed_joints
+        ]
+        filtered_actuated = [cfg.actuated_joints[i] for i in filtered_actuated_indices]
+
+        filtered_control_modes = [cfg.control_modes[i] for i in filtered_actuated_indices]
+
+        filtered_stiffness = (
+            [cfg.stiffness[i] for i in filtered_actuated_indices]
+            if cfg.stiffness is not None
+            else None
+        )
+        filtered_damping = (
+            [cfg.damping[i] for i in filtered_actuated_indices]
+            if cfg.damping is not None
+            else None
+        )
+        filtered_joint_damping = (
+            [cfg.joint_damping[i] for i in filtered_observed_indices]
+            if cfg.joint_damping is not None
+            else None
+        )
+        filtered_joint_frictionloss = (
+            [cfg.joint_frictionloss[i] for i in filtered_observed_indices]
+            if cfg.joint_frictionloss is not None
+            else None
+        )
+        filtered_armature = (
+            [cfg.armature[i] for i in filtered_actuated_indices]
+            if cfg.armature is not None
+            else None
+        )
+
+        return URDFtoMuJoCoLoaderCfg(
+            observed_joints=filtered_observed,
+            actuated_joints=filtered_actuated,
+            control_modes=filtered_control_modes,
+            stiffness=filtered_stiffness,
+            damping=filtered_damping,
+            joint_damping=filtered_joint_damping,
+            joint_frictionloss=filtered_joint_frictionloss,
+            armature=filtered_armature,
+            all_missing_joints_as_sites=cfg.all_missing_joints_as_sites,
+            framequat_sensors_cfg=cfg.framequat_sensors_cfg,
+            gyro_sensors_cfg=cfg.gyro_sensors_cfg,
+            cameras_cfg=cfg.cameras_cfg,
+            equality_constraints_cfg=cfg.equality_constraints_cfg,
+            ball_joint_damping=cfg.ball_joint_damping,
+            ball_joint_armature=cfg.ball_joint_armature,
+            ball_joint_frictionloss=cfg.ball_joint_frictionloss,
+        )
 
     @staticmethod
     def load_urdf(urdf_path: str, mesh_path: str, cfg: URDFtoMuJoCoLoaderCfg):
@@ -100,29 +319,35 @@ class URDFtoMuJoCoLoader:
 
         Args:
             urdf_path (Path): The URDF file path.
-            cfg (URDFtoMuJoCoLoaderCfg): The configuration containing the controlled joints, control modes, stiffness and damping.
+            cfg (URDFtoMuJoCoLoaderCfg): The loader configuration.
 
         Returns:
-            str: The URDF string.
+            URDFtoMuJoCoLoader: The initialized loader instance.
         """
-        original_urdf = ET.parse(urdf_path).getroot()
-        original_urdf = remove_gazebo_elements(original_urdf)
+        normalized_cfg = URDFtoMuJoCoLoader._normalize_cfg(cfg)
 
-        urdf_string = URDFtoMuJoCoLoader.simplify_urdf(urdf_path, cfg.controlled_joints, cfg.stiffness, cfg.damping)
+        urdf_string = URDFtoMuJoCoLoader.simplify_urdf(
+            urdf_path,
+            normalized_cfg.observed_joints,
+            None,
+            None,
+        )
         reduced_urdf = remove_gazebo_elements(urdf_string)
 
         # --- Spherical joint handling ---
         # Detect triplets of revolute joints that represent spherical joints
         # (iDynTree convention: 3 revolute joints with x/y/z axes + 2 dummy links)
-        spherical_groups = detect_spherical_joint_groups(cfg.controlled_joints)
+        spherical_groups = detect_spherical_joint_groups(normalized_cfg.observed_joints)
         ball_joint_map = {}
         if spherical_groups:
             reduced_urdf, ball_joint_map = collapse_spherical_revolute_triplets(
                 reduced_urdf, spherical_groups
             )
-            print(f"Collapsed {len(spherical_groups)} spherical joint group(s) "
-                  f"into ball joint placeholders: "
-                  f"{[g['base_name'] for g in spherical_groups]}")
+            print(
+                f"Collapsed {len(spherical_groups)} spherical joint group(s) "
+                "into ball joint placeholders: "
+                f"{[g['base_name'] for g in spherical_groups]}"
+            )
 
         urdf_for_mjcf = add_mujoco_element(reduced_urdf, mesh_path)
         mjcf = load_urdf_into_mjcf(urdf_for_mjcf)
@@ -131,56 +356,25 @@ class URDFtoMuJoCoLoader:
         # Convert placeholder hinge joints to MuJoCo ball joints
         if ball_joint_map:
             convert_hinge_to_ball_joints(
-                mjcf, ball_joint_map,
-                damping=cfg.ball_joint_damping,
-                armature=cfg.ball_joint_armature,
-                frictionloss=cfg.ball_joint_frictionloss,  # use damping value for frictionloss as well for stability
+                mjcf,
+                ball_joint_map,
+                damping=normalized_cfg.ball_joint_damping,
+                armature=normalized_cfg.ball_joint_armature,
+                frictionloss=normalized_cfg.ball_joint_frictionloss,
             )
 
         # Build the set of spherical joint names (all 3 axes) for filtering
         spherical_joint_names = set()
         for group in spherical_groups:
-            spherical_joint_names.update([
-                group["joint_x"], group["joint_y"], group["joint_z"]
-            ])
+            spherical_joint_names.update(
+                [group["joint_x"], group["joint_y"], group["joint_z"]]
+            )
 
-        # Create a filtered config that excludes the spherical revolute joints
-        # (ball joints are passive and don't need actuators)
-        if spherical_joint_names:
-            filtered_indices = [
-                i for i, j in enumerate(cfg.controlled_joints)
-                if j not in spherical_joint_names
-            ]
-            filtered_joints = [cfg.controlled_joints[i] for i in filtered_indices]
-            filtered_control_modes = (
-                [cfg.control_modes[i] for i in filtered_indices]
-                if cfg.control_modes is not None else None
-            )
-            filtered_stiffness = (
-                [cfg.stiffness[i] for i in filtered_indices]
-                if cfg.stiffness is not None else None
-            )
-            filtered_damping = (
-                [cfg.damping[i] for i in filtered_indices]
-                if cfg.damping is not None else None
-            )
-            filtered_armature = (
-                [cfg.armature[i] for i in filtered_indices]
-                if cfg.armature is not None else None
-            )
-            mjcf_cfg = URDFtoMuJoCoLoaderCfg(
-                controlled_joints=filtered_joints,
-                control_modes=filtered_control_modes,
-                stiffness=filtered_stiffness,
-                damping=filtered_damping,
-                armature=filtered_armature,
-                all_missing_joints_as_sites=cfg.all_missing_joints_as_sites,
-                framequat_sensors_cfg=cfg.framequat_sensors_cfg,
-                gyro_sensors_cfg=cfg.gyro_sensors_cfg,
-                equality_constraints_cfg=cfg.equality_constraints_cfg,
-            )
-        else:
-            mjcf_cfg = cfg
+        # Ball-joint triplets are passive: remove them from observed + actuated
+        # vectors before adding actuators and setting per-joint values.
+        mjcf_cfg = URDFtoMuJoCoLoader._filter_cfg_for_removed_joints(
+            normalized_cfg, spherical_joint_names
+        )
 
         # Use the reduced URDF (from iDynTree) for computing site transforms.
         # iDynTree modifies joint origins when merging links during model
@@ -189,17 +383,17 @@ class URDFtoMuJoCoLoader:
         missing_joint_sites = URDFtoMuJoCoLoader.get_missing_joint_sites(
             reduced_urdf,
             mjcf,
-            controlled_joints=mjcf_cfg.controlled_joints,
+            observed_joints=mjcf_cfg.observed_joints,
             all_missing_joints_as_sites=mjcf_cfg.all_missing_joints_as_sites,
         )
 
         loader = URDFtoMuJoCoLoader(mjcf, mjcf_cfg)
         loader.set_armature(mjcf_cfg.armature)
         loader.add_sites_for_missing_joints(missing_joint_sites)
-        loader.add_framequat_sensors(cfg.framequat_sensors_cfg)
-        loader.add_gyro_sensors(cfg.gyro_sensors_cfg)
-        loader.add_cameras(cfg.cameras_cfg)
-        loader.add_equality_constraints(cfg.equality_constraints_cfg)
+        loader.add_framequat_sensors(mjcf_cfg.framequat_sensors_cfg)
+        loader.add_gyro_sensors(mjcf_cfg.gyro_sensors_cfg)
+        loader.add_cameras(mjcf_cfg.cameras_cfg)
+        loader.add_equality_constraints(mjcf_cfg.equality_constraints_cfg)
         return loader
 
     @staticmethod
@@ -381,7 +575,7 @@ class URDFtoMuJoCoLoader:
     def get_missing_joint_sites(
         robot_urdf: ET.Element,
         mjcf: ET.Element,
-        controlled_joints: List[str] = None,
+        observed_joints: List[str] = None,
         all_missing_joints_as_sites: bool = False,
     ) -> List[dict]:
         """Extract metadata for URDF links missing as bodies in MJCF.
@@ -397,7 +591,7 @@ class URDFtoMuJoCoLoader:
         Args:
             robot_urdf (ET.Element): The URDF root element.
             mjcf (ET.Element): The MJCF root element.
-            controlled_joints (List[str]): The list of controlled joint names.
+            observed_joints (List[str]): The list of observed joint names.
                 Used only for context; detection is based on comparing all URDF
                 links against MJCF bodies.
             all_missing_joints_as_sites (bool): If True, enable site generation
@@ -409,8 +603,8 @@ class URDFtoMuJoCoLoader:
         if not all_missing_joints_as_sites:
             return []
 
-        if controlled_joints is None:
-            controlled_joints = []
+        if observed_joints is None:
+            observed_joints = []
 
         all_joint_elements = robot_urdf.findall(".//joint")
 
@@ -661,25 +855,60 @@ class URDFtoMuJoCoLoader:
             raise ValueError("No fixed joint found that can be modified to floating.")
 
     def set_armature(self, armature: Union[None, List[float]]):
-        """Set the armature attribute on each controlled joint in the MJCF model.
+        """Set the armature attribute on each actuated joint in the MJCF model.
 
         Args:
-            armature (List[float] | None): Armature values, one per controlled joint.
+            armature (List[float] | None): Armature values, one per actuated joint.
                 If None, no armature attribute is set.
         """
         if armature is None:
             return
 
-        if len(armature) != len(self.controlled_joints):
+        if len(armature) != len(self.actuated_joints):
             raise ValueError(
                 f"Length of armature ({len(armature)}) must match "
-                f"the number of controlled joints ({len(self.controlled_joints)})."
+                f"the number of actuated_joints ({len(self.actuated_joints)})."
             )
 
-        for joint_name, value in zip(self.controlled_joints, armature):
+        for joint_name, value in zip(self.actuated_joints, armature):
             joint_elem = self.mjcf.find(f".//joint[@name='{joint_name}']")
             if joint_elem is not None:
                 joint_elem.set("armature", str(value))
+
+    def set_observed_joint_dynamics(
+        self,
+        damping: Union[None, List[float]] = None,
+        frictionloss: Union[None, List[float]] = None,
+    ):
+        """Set damping/frictionloss attributes on observed joints.
+
+        Args:
+            damping (List[float] | None): Per-observed-joint damping values.
+            frictionloss (List[float] | None): Per-observed-joint frictionloss values.
+        """
+        if damping is None and frictionloss is None:
+            return
+
+        if damping is not None and len(damping) != len(self.observed_joints):
+            raise ValueError(
+                f"Length of joint_damping ({len(damping)}) must match "
+                f"the number of observed_joints ({len(self.observed_joints)})."
+            )
+
+        if frictionloss is not None and len(frictionloss) != len(self.observed_joints):
+            raise ValueError(
+                f"Length of joint_frictionloss ({len(frictionloss)}) must match "
+                f"the number of observed_joints ({len(self.observed_joints)})."
+            )
+
+        for index, joint_name in enumerate(self.observed_joints):
+            joint_elem = self.mjcf.find(f".//joint[@name='{joint_name}']")
+            if joint_elem is None:
+                continue
+            if damping is not None:
+                joint_elem.set("damping", str(float(damping[index])))
+            if frictionloss is not None:
+                joint_elem.set("frictionloss", str(float(frictionloss[index])))
 
     def set_control_mode(self, joint: Union[str, List[str]], mode: ControlMode):
         """
@@ -697,18 +926,48 @@ class URDFtoMuJoCoLoader:
         else:
             raise ValueError("joint must be a string or a list of strings.")
 
-    def add_actuator(self, joint: str, control_mode: ControlMode):
+    def add_actuator(
+        self,
+        joint: str,
+        control_mode: ControlMode,
+        stiffness: Union[None, float] = None,
+        damping: Union[None, float] = None,
+    ):
         """
         Add an actuator to the MJCF model.
 
         Args:
             joint (str): The joint name.
             control_mode (ControlMode): The control mode.
+            stiffness (float | None): Position gain used as kp for position mode.
+            damping (float | None): Joint damping applied for position mode.
         """
         if control_mode == ControlMode.POSITION:
+            if stiffness is None:
+                raise ValueError(
+                    f"POSITION control for joint {joint} requires stiffness (kp)."
+                )
+            if damping is None:
+                raise ValueError(
+                    f"POSITION control for joint {joint} requires damping."
+                )
+
             joint_mjcf = self.mjcf.find(f".//joint[@name='{joint}']")
+            if joint_mjcf is None:
+                raise ValueError(f"Joint {joint} not found in the MJCF model.")
+            if "range" not in joint_mjcf.attrib:
+                raise ValueError(
+                    f"Joint {joint} is missing range, required for position control."
+                )
+
             ctrlrange = list(map(float, joint_mjcf.attrib["range"].split()))
-            add_position_actuator(self.mjcf, joint=joint, ctrlrange=ctrlrange)
+            add_position_actuator(
+                self.mjcf,
+                joint=joint,
+                ctrlrange=ctrlrange,
+                kp=float(stiffness),
+            )
+            joint_mjcf.set("damping", str(float(damping)))
         elif control_mode == ControlMode.TORQUE:
             add_torque_actuator(self.mjcf, joint=joint, ctrlrange=None)
         elif control_mode == ControlMode.VELOCITY:
@@ -716,24 +975,44 @@ class URDFtoMuJoCoLoader:
         else:
             raise ValueError("Control mode not recognized.")
 
-    def set_controlled_joints(self, joints: List[str]):
-        """
-        Set the controlled joints.
+    def set_actuated_joints(
+        self,
+        joints: List[str],
+        stiffness: Union[None, List[float]] = None,
+        damping: Union[None, List[float]] = None,
+    ):
+        """Set actuated joints and add actuators according to per-joint modes."""
+        self.actuated_joints = list(joints)
+        joint_elements = {
+            joint.attrib["name"]: joint for joint in self.mjcf.findall(".//joint")
+        }
 
-        Args:
-            joints (List[str]): The list of joints.
-        """
-        self.controlled_joints = joints
-        joint_elements = {joint.attrib["name"]: joint for joint in self.mjcf.findall(".//joint")}
+        if stiffness is not None and len(stiffness) != len(self.actuated_joints):
+            raise ValueError(
+                f"Length of stiffness ({len(stiffness)}) must match "
+                f"the number of actuated_joints ({len(self.actuated_joints)})."
+            )
 
-        for controlled_joint in self.controlled_joints:
-            joint_element = joint_elements.get(controlled_joint)
-            if joint_element is not None:
-                self.add_actuator(controlled_joint, self.control_mode[controlled_joint])
-            else:
-                raise ValueError(
-                    f"Joint {controlled_joint} not found in the MJCF model."
-                )
+        if damping is not None and len(damping) != len(self.actuated_joints):
+            raise ValueError(
+                f"Length of damping ({len(damping)}) must match "
+                f"the number of actuated_joints ({len(self.actuated_joints)})."
+            )
+
+        for i, actuated_joint in enumerate(self.actuated_joints):
+            joint_element = joint_elements.get(actuated_joint)
+            if joint_element is None:
+                raise ValueError(f"Joint {actuated_joint} not found in the MJCF model.")
+
+            if actuated_joint not in self.control_mode:
+                self.control_mode[actuated_joint] = ControlMode.TORQUE
+
+            self.add_actuator(
+                actuated_joint,
+                self.control_mode[actuated_joint],
+                stiffness=(stiffness[i] if stiffness is not None else None),
+                damping=(damping[i] if damping is not None else None),
+            )
 
     def add_sites_for_missing_joints(self, fixed_joint_sites: List[dict]):
         """Add one MJCF site for each configured missing URDF joint.

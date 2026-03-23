@@ -20,7 +20,7 @@ def _make_empty_mjcf() -> ET.Element:
 
 
 def test_add_framequat_sensors_none_keeps_model_unchanged():
-    loader = URDFtoMuJoCoLoader(_make_empty_mjcf(), URDFtoMuJoCoLoaderCfg(controlled_joints=[]))
+    loader = URDFtoMuJoCoLoader(_make_empty_mjcf(), URDFtoMuJoCoLoaderCfg(observed_joints=[]))
 
     loader.add_framequat_sensors(None)
 
@@ -28,7 +28,7 @@ def test_add_framequat_sensors_none_keeps_model_unchanged():
 
 
 def test_add_framequat_sensors_accepts_list_of_dataclasses():
-    loader = URDFtoMuJoCoLoader(_make_empty_mjcf(), URDFtoMuJoCoLoaderCfg(controlled_joints=[]))
+    loader = URDFtoMuJoCoLoader(_make_empty_mjcf(), URDFtoMuJoCoLoaderCfg(observed_joints=[]))
 
     loader.add_framequat_sensors(
         [
@@ -50,7 +50,7 @@ def test_add_framequat_sensors_accepts_list_of_dataclasses():
 
 
 def test_add_framequat_sensors_accepts_dict_with_obtype_alias():
-    loader = URDFtoMuJoCoLoader(_make_empty_mjcf(), URDFtoMuJoCoLoaderCfg(controlled_joints=[]))
+    loader = URDFtoMuJoCoLoader(_make_empty_mjcf(), URDFtoMuJoCoLoaderCfg(observed_joints=[]))
 
     loader.add_framequat_sensors(
         [
@@ -69,7 +69,7 @@ def test_add_framequat_sensors_accepts_dict_with_obtype_alias():
 
 
 def test_add_framequat_sensors_raises_on_missing_required_fields():
-    loader = URDFtoMuJoCoLoader(_make_empty_mjcf(), URDFtoMuJoCoLoaderCfg(controlled_joints=[]))
+    loader = URDFtoMuJoCoLoader(_make_empty_mjcf(), URDFtoMuJoCoLoaderCfg(observed_joints=[]))
 
     with pytest.raises(ValueError):
         loader.add_framequat_sensors([{"objname": "imu_frame", "name": "imu_quat"}])
@@ -77,7 +77,7 @@ def test_add_framequat_sensors_raises_on_missing_required_fields():
 
 def test_add_framequat_sensors_to_ergocub_sn001():
     urdf_root = str(rru.resolve_robotics_uri("package://ergoCub/robots/ergoCubSN001/model.urdf"))
-    controlled_joints = [
+    observed_joints = [
         "l_hip_pitch",
         "r_hip_pitch",
         "torso_roll",
@@ -111,7 +111,7 @@ def test_add_framequat_sensors_to_ergocub_sn001():
         FrameQuatSensorCfg(objname="realsense_rgb_frame", objtype="site", name="realsense_rgb_quat"),
     ]
     cfg = URDFtoMuJoCoLoaderCfg(
-        controlled_joints=controlled_joints,
+        observed_joints=observed_joints,
         framequat_sensors_cfg=framequat_sensors_cfg,
         all_missing_joints_as_sites=True,
     )
