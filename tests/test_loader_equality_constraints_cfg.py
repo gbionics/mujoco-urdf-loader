@@ -56,9 +56,7 @@ def test_add_equality_constraints_accepts_dict():
         _make_empty_mjcf(), URDFtoMuJoCoLoaderCfg(observed_joints=[])
     )
 
-    loader.add_equality_constraints(
-        [{"site1": "site_a", "site2": "site_b"}]
-    )
+    loader.add_equality_constraints([{"site1": "site_a", "site2": "site_b"}])
 
     connect = loader.mjcf.find(".//equality/connect")
     assert connect is not None
@@ -97,6 +95,61 @@ def test_add_equality_constraints_weld_type():
     assert weld is not None
     assert weld.attrib["body1"] == "body_a"
     assert weld.attrib["body2"] == "body_b"
+
+
+def test_add_equality_constraints_sets_solimp_and_solref_when_provided():
+    loader = URDFtoMuJoCoLoader(
+        _make_empty_mjcf(), URDFtoMuJoCoLoaderCfg(observed_joints=[])
+    )
+
+    loader.add_equality_constraints(
+        [
+            EqualityConstraintCfg(
+                site1="site_a",
+                site2="site_b",
+                constraint_type="connect",
+                solimp=[0.9, 0.95, 0.001],
+                solref=[0.02, 1.0],
+            )
+        ]
+    )
+
+    connect = loader.mjcf.find(".//equality/connect")
+    assert connect is not None
+    assert connect.attrib["solimp"] == "0.9 0.95 0.001"
+    assert connect.attrib["solref"] == "0.02 1.0"
+
+
+def test_add_equality_constraints_supports_different_solimp_solref_per_constraint():
+    loader = URDFtoMuJoCoLoader(
+        _make_empty_mjcf(), URDFtoMuJoCoLoaderCfg(observed_joints=[])
+    )
+
+    loader.add_equality_constraints(
+        [
+            EqualityConstraintCfg(
+                site1="site_a",
+                site2="site_b",
+                constraint_type="connect",
+                solimp=[0.9, 0.95, 0.001],
+                solref=[0.02, 1.0],
+            ),
+            EqualityConstraintCfg(
+                site1="site_b",
+                site2="site_a",
+                constraint_type="connect",
+                solimp=[0.8, 0.9, 0.002],
+                solref=[0.03, 1.0],
+            ),
+        ]
+    )
+
+    connects = loader.mjcf.findall(".//equality/connect")
+    assert len(connects) == 2
+    assert connects[0].attrib["solimp"] == "0.9 0.95 0.001"
+    assert connects[0].attrib["solref"] == "0.02 1.0"
+    assert connects[1].attrib["solimp"] == "0.8 0.9 0.002"
+    assert connects[1].attrib["solref"] == "0.03 1.0"
 
 
 def test_add_equality_constraints_raises_on_missing_fields():

@@ -177,6 +177,7 @@ def add_joint_vel_sensor(mjcf: ET.Element, joint: str, name: str = None) -> ET.E
 
     return mjcf
 
+
 def add_gyro_sensor(mjcf: ET.Element, site: str, name: str = None) -> ET.Element:
     """Add a gyroscope sensor to the body.
 
@@ -200,7 +201,10 @@ def add_gyro_sensor(mjcf: ET.Element, site: str, name: str = None) -> ET.Element
 
     return mjcf
 
-def add_camera_to_site(mjcf: ET.Element, name: str, site: str, fovy: float) -> ET.Element:
+
+def add_camera_to_site(
+    mjcf: ET.Element, name: str, site: str, fovy: float
+) -> ET.Element:
     """Add a camera tag to the site.
 
     Args:
@@ -218,17 +222,23 @@ def add_camera_to_site(mjcf: ET.Element, name: str, site: str, fovy: float) -> E
 
     q_site_wxyz = list(map(float, quat.split()))
     if len(q_site_wxyz) != 4:
-        raise ValueError("Quaternion must have exactly 4 components in [w x y z] format.")
+        raise ValueError(
+            "Quaternion must have exactly 4 components in [w x y z] format."
+        )
 
     # scipy uses [x, y, z, w], MuJoCo uses [w, x, y, z]
-    r_site = Rotation.from_quat([q_site_wxyz[1], q_site_wxyz[2], q_site_wxyz[3], q_site_wxyz[0]])
+    r_site = Rotation.from_quat(
+        [q_site_wxyz[1], q_site_wxyz[2], q_site_wxyz[3], q_site_wxyz[0]]
+    )
     # MuJoCo cameras look along the local -Z axis, while site/tool frames are
     # typically defined with +Z as forward. Rotate 180° about X so the camera
     # optical axis aligns with the intended site forward direction.
     r_x180 = Rotation.from_euler("x", 180, degrees=True)
     r_camera = r_site * r_x180
     q_camera_xyzw = r_camera.as_quat()
-    camera_quat = f"{q_camera_xyzw[3]} {q_camera_xyzw[0]} {q_camera_xyzw[1]} {q_camera_xyzw[2]}"
+    camera_quat = (
+        f"{q_camera_xyzw[3]} {q_camera_xyzw[0]} {q_camera_xyzw[1]} {q_camera_xyzw[2]}"
+    )
 
     # create the camera tag as a sibling right after the site element
     camera = ET.Element("camera")
@@ -256,7 +266,9 @@ def add_camera_to_site(mjcf: ET.Element, name: str, site: str, fovy: float) -> E
     return mjcf
 
 
-def add_framequat_sensor(mjcf: ET.Element, objname: str, objtype: str = 'site', name: str = None) -> ET.Element:
+def add_framequat_sensor(
+    mjcf: ET.Element, objname: str, objtype: str = "site", name: str = None
+) -> ET.Element:
     """Add a frame quaternion sensor to the body.
 
     Args:
@@ -372,6 +384,7 @@ def set_collision_groups(
 
     return mjcf
 
+
 def update_meshdir(mjcf: ET.Element, meshdir: str) -> ET.Element:
     """Set the meshdir in the mjcf file.
 
@@ -386,6 +399,7 @@ def update_meshdir(mjcf: ET.Element, meshdir: str) -> ET.Element:
     compiler.set("meshdir", meshdir)
 
     return mjcf
+
 
 def separate_left_right_collision_groups(
     mjcf: ET.Element,
@@ -591,8 +605,13 @@ def convert_hinge_to_ball_joints(
         joint_elem.set("frictionloss", str(frictionloss))
     return mjcf
 
+
 def add_equality_constraints_for_sites(
-    mjcf: ET.Element, site_pairs: List[tuple], constraint_type: str = "connect"
+    mjcf: ET.Element,
+    site_pairs: List[tuple],
+    constraint_type: str = "connect",
+    solimp: List[float] = None,
+    solref: List[float] = None,
 ) -> ET.Element:
     """
     Add equality constraints between pairs of sites in MJCF.
@@ -601,6 +620,8 @@ def add_equality_constraints_for_sites(
         mjcf (ET.Element): The MJCF file as ElementTree.
         site_pairs (List[tuple]): List of tuples with (site1_name, site2_name) to connect.
         constraint_type (str): Type of constraint - "connect" or "weld" (default: "connect").
+        solimp (List[float], optional): Solver impedance parameters for the constraint.
+        solref (List[float], optional): Solver reference parameters for the constraint.
 
     Returns:
         ET.Element: The modified MJCF file.
@@ -626,6 +647,10 @@ def add_equality_constraints_for_sites(
             constraint = ET.SubElement(equality, "connect")
             constraint.set("site1", site1)
             constraint.set("site2", site2)
+            if solimp is not None:
+                constraint.set("solimp", " ".join(map(str, solimp)))
+            if solref is not None:
+                constraint.set("solref", " ".join(map(str, solref)))
         elif constraint_type == "weld":
             # Weld constraint references bodies
             # Find parent bodies of the sites
@@ -645,6 +670,10 @@ def add_equality_constraints_for_sites(
             constraint = ET.SubElement(equality, "weld")
             constraint.set("body1", body1)
             constraint.set("body2", body2)
+            if solimp is not None:
+                constraint.set("solimp", " ".join(map(str, solimp)))
+            if solref is not None:
+                constraint.set("solref", " ".join(map(str, solref)))
         else:
             raise ValueError(f"Unknown constraint type: {constraint_type}")
 

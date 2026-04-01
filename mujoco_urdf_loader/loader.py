@@ -2,7 +2,7 @@ import dataclasses
 import tempfile
 import xml.etree.ElementTree as ET
 from enum import Enum
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Optional, Union
 
 import idyntree.bindings as idyn
 import numpy as np
@@ -45,18 +45,24 @@ class GyroSensorCfg:
     site: str
     name: str = None
 
+
 @dataclasses.dataclass
 class CameraCfg:
     site: str
     fovy: float
     name: str
 
+
 @dataclasses.dataclass
 class EqualityConstraintCfg:
     """Configuration for a connect/weld equality constraint between two sites."""
+
     site1: str
     site2: str
     constraint_type: str = "connect"
+    solimp: Optional[List[float]] = None
+    solref: Optional[List[float]] = None
+
 
 @dataclasses.dataclass
 class URDFtoMuJoCoLoaderCfg:
@@ -69,10 +75,14 @@ class URDFtoMuJoCoLoaderCfg:
     joint_frictionloss: Union[None, List[float]] = None
     armature: Union[None, List[float]] = None
     all_missing_joints_as_sites: bool = False
-    framequat_sensors_cfg: Union[None, List[Union[FrameQuatSensorCfg, Dict[str, Any]]]] = None
+    framequat_sensors_cfg: Union[
+        None, List[Union[FrameQuatSensorCfg, Dict[str, Any]]]
+    ] = None
     gyro_sensors_cfg: Union[None, List[Union[GyroSensorCfg, Dict[str, Any]]]] = None
     cameras_cfg: Union[None, List[Union[CameraCfg, Dict[str, Any]]]] = None
-    equality_constraints_cfg: Union[None, List[Union[EqualityConstraintCfg, Dict[str, Any]]]] = None
+    equality_constraints_cfg: Union[
+        None, List[Union[EqualityConstraintCfg, Dict[str, Any]]]
+    ] = None
     ball_joint_damping: float = 0.0
     ball_joint_armature: float = 0.0
     ball_joint_frictionloss: float = 0.0
@@ -196,11 +206,11 @@ class URDFtoMuJoCoLoader:
             )
 
         joint_frictionloss = (
-            list(cfg.joint_frictionloss)
-            if cfg.joint_frictionloss is not None
-            else None
+            list(cfg.joint_frictionloss) if cfg.joint_frictionloss is not None else None
         )
-        if joint_frictionloss is not None and len(joint_frictionloss) != len(observed_joints):
+        if joint_frictionloss is not None and len(joint_frictionloss) != len(
+            observed_joints
+        ):
             raise ValueError(
                 f"Length of joint_frictionloss ({len(joint_frictionloss)}) must match "
                 f"the number of observed_joints ({len(observed_joints)})."
@@ -256,16 +266,22 @@ class URDFtoMuJoCoLoader:
             return cfg
 
         filtered_observed_indices = [
-            i for i, joint in enumerate(cfg.observed_joints) if joint not in removed_joints
+            i
+            for i, joint in enumerate(cfg.observed_joints)
+            if joint not in removed_joints
         ]
         filtered_observed = [cfg.observed_joints[i] for i in filtered_observed_indices]
 
         filtered_actuated_indices = [
-            i for i, joint in enumerate(cfg.actuated_joints) if joint not in removed_joints
+            i
+            for i, joint in enumerate(cfg.actuated_joints)
+            if joint not in removed_joints
         ]
         filtered_actuated = [cfg.actuated_joints[i] for i in filtered_actuated_indices]
 
-        filtered_control_modes = [cfg.control_modes[i] for i in filtered_actuated_indices]
+        filtered_control_modes = [
+            cfg.control_modes[i] for i in filtered_actuated_indices
+        ]
 
         filtered_stiffness = (
             [cfg.stiffness[i] for i in filtered_actuated_indices]
@@ -422,7 +438,9 @@ class URDFtoMuJoCoLoader:
 
     def add_framequat_sensors(
         self,
-        framequat_sensors_cfg: Union[None, List[Union[FrameQuatSensorCfg, Dict[str, Any]]]] = None,
+        framequat_sensors_cfg: Union[
+            None, List[Union[FrameQuatSensorCfg, Dict[str, Any]]]
+        ] = None,
     ):
         if framequat_sensors_cfg is None:
             # skip adding sensors if no configuration is provided
@@ -460,7 +478,9 @@ class URDFtoMuJoCoLoader:
 
     def add_gyro_sensors(
         self,
-        gyro_sensors_cfg: Union[None, List[Union[GyroSensorCfg, Dict[str, Any]]]] = None,
+        gyro_sensors_cfg: Union[
+            None, List[Union[GyroSensorCfg, Dict[str, Any]]]
+        ] = None,
     ):
         if gyro_sensors_cfg is None:
             return
@@ -491,7 +511,9 @@ class URDFtoMuJoCoLoader:
         fovy = camera_cfg.get("fovy")
 
         if name is None or site is None:
-            raise ValueError("Each camera configuration requires name and site (or link).")
+            raise ValueError(
+                "Each camera configuration requires name and site (or link)."
+            )
 
         return CameraCfg(name=name, site=site, fovy=fovy)
 
@@ -527,6 +549,9 @@ class URDFtoMuJoCoLoader:
         site1 = eq_cfg.get("site1")
         site2 = eq_cfg.get("site2")
         constraint_type = eq_cfg.get("constraint_type", "connect")
+        # get solimp and solref if provided, otherwise default to None
+        solimp = eq_cfg.get("solimp")
+        solref = eq_cfg.get("solref")
 
         if site1 is None or site2 is None:
             raise ValueError(
@@ -534,7 +559,11 @@ class URDFtoMuJoCoLoader:
             )
 
         return EqualityConstraintCfg(
-            site1=site1, site2=site2, constraint_type=constraint_type,
+            site1=site1,
+            site2=site2,
+            constraint_type=constraint_type,
+            solimp=solimp,
+            solref=solref,
         )
 
     def add_equality_constraints(
@@ -551,24 +580,33 @@ class URDFtoMuJoCoLoader:
         Args:
             equality_constraints_cfg: List of ``EqualityConstraintCfg``
                 dataclasses or dicts with keys ``site1``, ``site2``, and
-                optionally ``constraint_type`` (default ``"connect"``).
+                optionally ``constraint_type`` (default ``"connect"``), ``solimp``, and ``solref``.
                 If ``None``, no constraints are added.
         """
         if equality_constraints_cfg is None:
             return
 
-        # Group by constraint_type so we can call the helper once per type
-        by_type: Dict[str, List[tuple]] = {}
+        # Group by (constraint_type, solimp, solref) so each call to the helper
+        # can pass homogeneous solver parameters.
+        by_group: Dict[tuple, List[tuple]] = {}
         for cfg in equality_constraints_cfg:
             normalized = self._normalize_equality_constraint_cfg(cfg)
-            ctype = normalized.constraint_type
-            by_type.setdefault(ctype, []).append(
+            group_key = (
+                normalized.constraint_type,
+                tuple(normalized.solimp) if normalized.solimp is not None else None,
+                tuple(normalized.solref) if normalized.solref is not None else None,
+            )
+            by_group.setdefault(group_key, []).append(
                 (normalized.site1, normalized.site2)
             )
 
-        for constraint_type, site_pairs in by_type.items():
+        for (constraint_type, solimp, solref), site_pairs in by_group.items():
             add_equality_constraints_for_sites(
-                self.mjcf, site_pairs, constraint_type=constraint_type,
+                self.mjcf,
+                site_pairs,
+                constraint_type=constraint_type,
+                solimp=list(solimp) if solimp is not None else None,
+                solref=list(solref) if solref is not None else None,
             )
 
     @staticmethod
@@ -790,7 +828,9 @@ class URDFtoMuJoCoLoader:
         # Load the URDF model
         model_loader = idyn.ModelLoader()
         if not model_loader.loadReducedModelFromFile(urdf_path, joints):
-            raise ValueError(f"Error loading the URDF model from {urdf_path}. Check the file path or if the joints are correct.")
+            raise ValueError(
+                f"Error loading the URDF model from {urdf_path}. Check the file path or if the joints are correct."
+            )
         model = model_loader.model()
 
         if stiffness is not None:
@@ -804,7 +844,6 @@ class URDFtoMuJoCoLoader:
                 joint = model.getJoint(i)
                 for dof in range(joint.getNrOfDOFs()):
                     joint.setDamping(dof, damping[i])
-
 
         # Save the simplified model
         model_saver = idyn.ModelExporter()
@@ -1088,6 +1127,8 @@ class URDFtoMuJoCoLoader:
         """
         mjcf = self.mjcf
         if pretty:
-            mjcf = ET.fromstring(ET.tostring(self.mjcf, encoding="unicode", method="xml"))
+            mjcf = ET.fromstring(
+                ET.tostring(self.mjcf, encoding="unicode", method="xml")
+            )
             ET.indent(mjcf, space="  ")
         return ET.tostring(mjcf, encoding="unicode", method="xml")
