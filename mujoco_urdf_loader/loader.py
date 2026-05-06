@@ -848,6 +848,10 @@ class URDFtoMuJoCoLoader:
         # Save the simplified model
         model_saver = idyn.ModelExporter()
         model_saver.init(model)
+        export_opts = idyn.ModelExporterOptions()
+        export_opts.baseLink = model.getLinkName(model.getDefaultBaseLink())
+        export_opts.exportFirstBaseLinkAdditionalFrameAsFakeURDFBase = False
+        model_saver.setExportingOptions(export_opts)
 
         with tempfile.NamedTemporaryFile(delete=False) as temp:
             temp_path = temp.name
@@ -863,10 +867,14 @@ class URDFtoMuJoCoLoader:
     @staticmethod
     def connect_root_to_world(root):
         """
-        Connect the root link to the world.
+        Connect the root link to the world via a floating joint.
+
+        If the root link is already ``world``, the first fixed joint from
+        ``world`` is converted to floating.  Otherwise a new ``world`` link
+        and a floating joint are inserted at the beginning of the URDF.
 
         Args:
-            root (ET.Element): The root element.
+            root (ET.Element): The root element of the URDF XML.
         """
 
         # Find all the links and joints in the URDF
@@ -874,24 +882,56 @@ class URDFtoMuJoCoLoader:
         joints = root.findall(".//joint")
         # Find child and parent links for each joint
         child_links = {joint.find("child").attrib["link"] for joint in joints}
-        parent_links = {joint.find("parent").attrib["link"] for joint in joints}
-        # The root link is a parent link that is not a child link
+        # The root link is a link that is never a child of any joint
         root_link = next(link for link in links if link not in child_links)
-        # Find the joint that has the root link as parent
-        fixed_joint_found = False
-        for joint in joints:
-            parent_link = joint.find("parent").attrib["link"]
-            if parent_link == root_link:
-                # Check if the joint is fixed
-                if joint.attrib["type"] == "fixed":
-                    # Change the joint type to floating
+
+        if root_link == "world":
+            # The URDF already has a world link as root; convert the first
+            # fixed joint from world to floating.
+            for joint in joints:
+                parent_link = joint.find("parent").attrib["link"]
+                if parent_link == "world" and joint.attrib["type"] == "fixed":
                     joint.attrib["type"] = "floating"
                     print(f"Modified joint {joint.attrib['name']} to type floating.")
-                    fixed_joint_found = True
-                break
+                    return
+            raise ValueError(
+                "Root link is 'world' but no fixed joint from 'world' was found."
+            )
 
-        if not fixed_joint_found:
-            raise ValueError("No fixed joint found that can be modified to floating.")
+        # Root link is not world — insert a world link and floating joint.
+        # Elements must appear before any joint that references them for
+        # MuJoCo's URDF parser, so we insert at position 0.
+
+        # If a "world" link already exists as a child (e.g. iDynTree exported
+        # it as an additional frame), remove it and its parent joint to avoid
+        # circular dependencies.
+        if "world" in links:
+            for joint in list(root.findall(".//joint")):
+                child_el = joint.find("child")
+                if child_el is not None and child_el.attrib.get("link") == "world":
+                    root.remove(joint)
+                    break
+            root.remove(links["world"])
+
+        world_link = ET.Element("link")
+        world_link.set("name", "world")
+        root.insert(0, world_link)
+
+        floating_joint = ET.Element("joint")
+        floating_joint.set("name", "floating_base_joint")
+        floating_joint.set("type", "floating")
+        origin = ET.SubElement(floating_joint, "origin")
+        origin.set("xyz", "0 0 0")
+        origin.set("rpy", "0 0 0")
+        parent_elem = ET.SubElement(floating_joint, "parent")
+        parent_elem.set("link", "world")
+        child_elem = ET.SubElement(floating_joint, "child")
+        child_elem.set("link", root_link)
+        root.insert(1, floating_joint)
+
+        print(
+            f"Added floating joint 'floating_base_joint' from 'world' to '{root_link}'."
+        )
 
     def set_armature(self, armature: Union[None, List[float]]):
         """Set the armature attribute on each actuated joint in the MJCF model.
