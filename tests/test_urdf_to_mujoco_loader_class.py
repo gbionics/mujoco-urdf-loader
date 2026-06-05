@@ -14,7 +14,7 @@ from mujoco_urdf_loader.urdf_fcn import get_mesh_path
 # Define robot configurations in a dictionary
 ROBOTS = {
     "ergoCub": {
-        "controlled_joints": [
+        "observed_joints": [
             "l_hip_pitch",
             "r_hip_pitch",
             "torso_roll",
@@ -48,7 +48,7 @@ ROBOTS = {
         "mesh_path": None,  # Will be set later
     },
     "ANYmal": {
-        "controlled_joints": [
+        "observed_joints": [
             "LF_HAA",
             "LF_HFE",
             "LF_KFE",
@@ -76,14 +76,19 @@ for robot in ROBOTS.values():
 @pytest.mark.parametrize("robot_name", ["ergoCub", "ANYmal"])
 def test_load_urdf_into_mjcf(robot_name):
     robot = ROBOTS[robot_name]
-    controlled_joints = robot["controlled_joints"]
+    observed_joints = robot["observed_joints"]
     urdf_path = robot["urdf_path"]
     mesh_path = robot["mesh_path"]
 
-    control_modes = [ControlMode.TORQUE] * len(controlled_joints)
-    stiffness = [0.0] * len(controlled_joints)
-    damping = [0.0] * len(controlled_joints)
-    cfg = URDFtoMuJoCoLoaderCfg(controlled_joints, control_modes, stiffness, damping)
+    control_modes = [ControlMode.TORQUE] * len(observed_joints)
+    stiffness = [0.0] * len(observed_joints)
+    damping = [0.0] * len(observed_joints)
+    cfg = URDFtoMuJoCoLoaderCfg(
+        observed_joints=observed_joints,
+        control_modes=control_modes,
+        stiffness=stiffness,
+        damping=damping,
+    )
 
     loader = URDFtoMuJoCoLoader.load_urdf(urdf_path, mesh_path, cfg)
     mjcf = loader.get_mjcf_string()
@@ -94,14 +99,20 @@ def test_load_urdf_into_mjcf(robot_name):
 @pytest.mark.parametrize("robot_name", ["ergoCub", "ANYmal"])
 def test_total_mass(robot_name):
     robot = ROBOTS[robot_name]
-    controlled_joints = robot["controlled_joints"]
+    observed_joints = robot["observed_joints"]
     urdf_path = robot["urdf_path"]
     mesh_path = robot["mesh_path"]
 
-    control_modes = [ControlMode.TORQUE] * len(controlled_joints)
-    stiffness = [0.0] * len(controlled_joints)
-    damping = [0.0] * len(controlled_joints)
-    cfg = URDFtoMuJoCoLoaderCfg(controlled_joints, control_modes, stiffness, damping)
+    control_modes = [ControlMode.TORQUE] * len(observed_joints)
+    stiffness = [0.0] * len(observed_joints)
+    damping = [0.0] * len(observed_joints)
+    cfg = URDFtoMuJoCoLoaderCfg(
+        observed_joints=observed_joints,
+        control_modes=control_modes,
+        stiffness=stiffness,
+        damping=damping,
+        all_missing_joints_as_sites=False,
+    )
 
     loader = URDFtoMuJoCoLoader.load_urdf(urdf_path, mesh_path, cfg)
     mjcf = loader.get_mjcf_string()
@@ -113,7 +124,41 @@ def test_total_mass(robot_name):
 
     # Test with iDynTree
     model_loader = idyntree.ModelLoader()
-    model_loader.loadReducedModelFromFile(urdf_path, controlled_joints)
+    model_loader.loadReducedModelFromFile(urdf_path, observed_joints)
+    idt_model = model_loader.model()
+    total_mass_idt = idt_model.getTotalMass()
+
+    assert total_mass_mj == pytest.approx(total_mass_idt, abs=1e-4)
+
+@pytest.mark.parametrize("robot_name", ["ergoCub", "ANYmal"])
+def test_total_mass_with_missing_links(robot_name):
+    robot = ROBOTS[robot_name]
+    observed_joints = robot["observed_joints"]
+    urdf_path = robot["urdf_path"]
+    mesh_path = robot["mesh_path"]
+
+    control_modes = [ControlMode.TORQUE] * len(observed_joints)
+    stiffness = [0.0] * len(observed_joints)
+    damping = [0.0] * len(observed_joints)
+    cfg = URDFtoMuJoCoLoaderCfg(
+        observed_joints=observed_joints,
+        control_modes=control_modes,
+        stiffness=stiffness,
+        damping=damping,
+        all_missing_joints_as_sites=True,
+    )
+
+    loader = URDFtoMuJoCoLoader.load_urdf(urdf_path, mesh_path, cfg)
+    mjcf = loader.get_mjcf_string()
+
+    model = mujoco.MjModel.from_xml_string(mjcf)
+    data = mujoco.MjData(model)
+
+    total_mass_mj = sum(model.body_mass)
+
+    # Test with iDynTree
+    model_loader = idyntree.ModelLoader()
+    model_loader.loadReducedModelFromFile(urdf_path, observed_joints)
     idt_model = model_loader.model()
     total_mass_idt = idt_model.getTotalMass()
 

@@ -1,7 +1,8 @@
 import copy
+import re
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from typing import List
+from typing import Dict, List, Tuple
 
 import resolve_robotics_uri_py as rru
 
@@ -186,3 +187,135 @@ def get_joint_couplings(robot_urdf: ET.Element) -> dict:
             }
 
     return joint_couplings
+
+
+def detect_spherical_joint_groups(
+    controlled_joints: List[str],
+    rev_joint_prefix: str = "spherical_rev_",
+) -> List[Dict]:
+    """Detect groups of 3 revolute joints that represent spherical joints.
+
+    The iDynTree convention encodes a spherical joint as three consecutive
+    revolute joints named ``{rev_joint_prefix}{base_name}_x``,
+    ``{rev_joint_prefix}{base_name}_y``, ``{rev_joint_prefix}{base_name}_z``.
+
+    Args:
+        controlled_joints: List of joint names (from config).
+        rev_joint_prefix: Naming prefix used for the revolute triplet
+            (default: ``"spherical_rev_"``).
+
+    Returns:
+        List of dicts, each with keys:
+        - ``base_name`` (str): e.g. ``"r_motor_rod_in"``
+        - ``joint_x``, ``joint_y``, ``joint_z`` (str): full joint names
+    """
+    suffix_re = re.compile(
+        rf"^{re.escape(rev_joint_prefix)}(.+)_(x|y|z)$"
+    )
+
+    # Collect base_name -> {axis: joint_name}
+    candidates: Dict[str, Dict[str, str]] = {}
+    for jname in controlled_joints:
+        m = suffix_re.match(jname)
+        if m:
+            base_name, axis = m.group(1), m.group(2)
+            candidates.setdefault(base_name, {})[axis] = jname
+
+    groups = []
+    for base_name, axes in candidates.items():
+        if {"x", "y", "z"} <= set(axes):
+            groups.append(
+                {
+                    "base_name": base_name,
+                    "joint_x": axes["x"],
+                    "joint_y": axes["y"],
+                    "joint_z": axes["z"],
+                }
+            )
+    return groups
+
+
+def collapse_spherical_revolute_triplets(
+    robot_urdf: ET.Element,
+    spherical_groups: List[Dict],
+    fake_link_prefix: str = "spherical_fake_",
+) -> Tuple[ET.Element, Dict[str, str]]:
+    """Collapse 3-revolute spherical joint triplets into single placeholder joints.
+
+    For each detected spherical group, this function:
+    1. Removes the two zero-mass dummy links (``{fake_link_prefix}{base_name}_link1``
+       and ``_link2``).
+    2. Removes the ``_y`` and ``_z`` revolute joints.
+    3. Rewrites the ``_x`` joint so its ``<child>`` points directly to the
+       final child link (the child of the ``_z`` joint) and changes its type
+       to ``"continuous"`` (unlimited hinge).
+
+    The caller should later convert the resulting hinge joint into a MuJoCo
+    ``ball`` joint in the MJCF post-processing step.
+
+    Args:
+        robot_urdf: URDF root element (modified **in-place** and also returned).
+        spherical_groups: Output of :func:`detect_spherical_joint_groups`.
+        fake_link_prefix: Prefix used for dummy link names.
+
+    Returns:
+        Tuple of (modified URDF element, mapping from placeholder joint name
+        to ``base_name``).
+    """
+    urdf = copy.deepcopy(robot_urdf)
+    ball_joint_map: Dict[str, str] = {}
+
+    # Index joints and links for fast lookup
+    joints_by_name = {j.attrib["name"]: j for j in urdf.findall(".//joint")}
+    links_by_name = {l.attrib["name"]: l for l in urdf.findall(".//link")}
+
+    for group in spherical_groups:
+        base_name = group["base_name"]
+        jx_name = group["joint_x"]
+        jy_name = group["joint_y"]
+        jz_name = group["joint_z"]
+
+        jx = joints_by_name.get(jx_name)
+        jy = joints_by_name.get(jy_name)
+        jz = joints_by_name.get(jz_name)
+
+        if jx is None or jy is None or jz is None:
+            raise ValueError(
+                f"Spherical group '{base_name}': could not find all three "
+                f"revolute joints ({jx_name}, {jy_name}, {jz_name}) in the URDF."
+            )
+
+        # The final child is the child of the _z joint (e.g. r_rod_in)
+        final_child = jz.find("child").attrib["link"]
+
+        # Dummy link names
+        dummy_link1 = f"{fake_link_prefix}{base_name}_link1"
+        dummy_link2 = f"{fake_link_prefix}{base_name}_link2"
+
+        # --- Remove dummy links ---
+        for dname in (dummy_link1, dummy_link2):
+            link_elem = links_by_name.get(dname)
+            if link_elem is not None:
+                urdf.remove(link_elem)
+
+        # --- Remove _y and _z joints ---
+        for jname in (jy_name, jz_name):
+            joint_elem = joints_by_name.get(jname)
+            if joint_elem is not None:
+                urdf.remove(joint_elem)
+
+        # --- Rewrite _x joint as placeholder continuous joint ---
+        jx.attrib["type"] = "continuous"
+        jx.find("child").set("link", final_child)
+        # Remove axis element (ball joints are axis-free)
+        axis_elem = jx.find("axis")
+        if axis_elem is not None:
+            jx.remove(axis_elem)
+        # Remove dynamics if present (not needed for placeholder)
+        dynamics_elem = jx.find("dynamics")
+        if dynamics_elem is not None:
+            jx.remove(dynamics_elem)
+
+        ball_joint_map[jx_name] = base_name
+
+    return urdf, ball_joint_map

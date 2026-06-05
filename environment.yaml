@@ -7,3 +7,6 @@ dependencies:
   - mujoco-samples
   - pytest
   - resolve-robotics-uri-py
+  - numpy
+  - scipy
+  - pyyaml

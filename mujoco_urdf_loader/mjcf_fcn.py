@@ -1,5 +1,6 @@
 import xml.etree.ElementTree as ET
-from typing import List
+from typing import Dict, List
+from scipy.spatial.transform import Rotation
 
 
 def add_new_worldbody(
@@ -85,6 +86,7 @@ def add_position_actuator(
     motor.set("group", str(group))
 
     return mjcf
+
 
 def add_torque_actuator(
     mjcf: ET.Element,
@@ -176,13 +178,128 @@ def add_joint_vel_sensor(mjcf: ET.Element, joint: str, name: str = None) -> ET.E
     return mjcf
 
 
+def add_gyro_sensor(mjcf: ET.Element, site: str, name: str = None) -> ET.Element:
+    """Add a gyroscope sensor to the body.
+
+    Args:
+        mjcf (ET.Element): The mjcf file.
+        site (str): The site to add the sensor to.
+        name (str): The name of the sensor (default: f"{site}_gyro").
+    """
+
+    # check if there already is a sensor element in the mjcf
+    if mjcf.find(".//sensor") is None:
+        sensors = ET.Element("sensor")
+        mjcf.append(sensors)
+    else:
+        sensors = mjcf.find(".//sensor")
+
+    # create the gyroscope sensor
+    gyro = ET.SubElement(sensors, "gyro")
+    gyro.set("name", name if name is not None else f"{site}_gyro")
+    gyro.set("site", site)
+
+    return mjcf
+
+
+def add_camera_to_site(
+    mjcf: ET.Element, name: str, site: str, fovy: float
+) -> ET.Element:
+    """Add a camera tag to the site.
+
+    Args:
+        mjcf (ET.Element): The mjcf file.
+        name (str): The name of the camera.
+        site (str): The site to add the camera tag to.
+        fovy (float): The field of view of the camera (deg).
+    """
+    # look for the site in the mjcf file and retrieve the position and orientation of the site
+    site_element = mjcf.find(f".//site[@name='{site}']")
+    if site_element is None:
+        raise ValueError(f"Site {site} not found in the mjcf file.")
+    pos = site_element.attrib["pos"]
+    quat = site_element.attrib["quat"]
+
+    q_site_wxyz = list(map(float, quat.split()))
+    if len(q_site_wxyz) != 4:
+        raise ValueError(
+            "Quaternion must have exactly 4 components in [w x y z] format."
+        )
+
+    # scipy uses [x, y, z, w], MuJoCo uses [w, x, y, z]
+    r_site = Rotation.from_quat(
+        [q_site_wxyz[1], q_site_wxyz[2], q_site_wxyz[3], q_site_wxyz[0]]
+    )
+    # MuJoCo cameras look along the local -Z axis, while site/tool frames are
+    # typically defined with +Z as forward. Rotate 180° about X so the camera
+    # optical axis aligns with the intended site forward direction.
+    r_x180 = Rotation.from_euler("x", 180, degrees=True)
+    r_camera = r_site * r_x180
+    q_camera_xyzw = r_camera.as_quat()
+    camera_quat = (
+        f"{q_camera_xyzw[3]} {q_camera_xyzw[0]} {q_camera_xyzw[1]} {q_camera_xyzw[2]}"
+    )
+
+    # create the camera tag as a sibling right after the site element
+    camera = ET.Element("camera")
+    camera.set("name", name)
+    camera.set("pos", pos)
+    camera.set("quat", camera_quat)
+    camera.set("fovy", str(fovy))
+
+    # xml.etree.ElementTree.Element has no addnext(); find parent and insert manually
+    parent = None
+    for elem in mjcf.iter():
+        for child in list(elem):
+            if child is site_element:
+                parent = elem
+                break
+        if parent is not None:
+            break
+
+    if parent is None:
+        raise ValueError(f"Parent of site {site} not found in the mjcf file.")
+
+    children = list(parent)
+    site_idx = children.index(site_element)
+    parent.insert(site_idx + 1, camera)
+    return mjcf
+
+
+def add_framequat_sensor(
+    mjcf: ET.Element, objname: str, objtype: str = "site", name: str = None
+) -> ET.Element:
+    """Add a frame quaternion sensor to the body.
+
+    Args:
+        mjcf (ET.Element): The mjcf file.
+        site (str): The site to add the sensor to.
+        name (str): The name of the sensor (default: f"{site}_framequat").
+    """
+
+    # check if there already is a sensor element in the mjcf
+    if mjcf.find(".//sensor") is None:
+        sensors = ET.Element("sensor")
+        mjcf.append(sensors)
+    else:
+        sensors = mjcf.find(".//sensor")
+
+    # create the frame quaternion sensor
+    framequat = ET.SubElement(sensors, "framequat")
+    framequat.set("name", name if name is not None else f"{objname}_framequat")
+    framequat.set("objtype", objtype)
+    framequat.set("objname", objname)
+
+    return mjcf
+
+
 def add_joint_eq(
-    mjcf: ET.Element, 
-    joint1: str, 
-    joint2: str, 
-    name: str = None, 
-    multiplier: float = 1.0, 
-    offset: float = 0.0
+    mjcf: ET.Element,
+    joint1: str,
+    joint2: str,
+    name: str = None,
+    multiplier: float = 1.0,
+    offset: float = 0.0,
 ) -> ET.Element:
     """Add a joint equality constraint between two joints.
 
@@ -264,6 +381,22 @@ def set_collision_groups(
         if idx in geom.attrib["mesh"]:
             geom.set("contype", str(group))
             geom.set("conaffinity", str(affinity))
+
+    return mjcf
+
+
+def update_meshdir(mjcf: ET.Element, meshdir: str) -> ET.Element:
+    """Set the meshdir in the mjcf file.
+
+    Args:
+        mjcf (ET.Element): The mjcf file.
+        meshdir (str): The mesh directory to set in the mjcf file.
+    """
+
+    compiler = mjcf.find(".//compiler")
+    if compiler is None:
+        compiler = ET.SubElement(mjcf, "compiler")
+    compiler.set("meshdir", meshdir)
 
     return mjcf
 
@@ -409,5 +542,143 @@ def add_sphere(
     geom.set("size", f"{size}")
     geom.set("rgba", f"{rgba[0]} {rgba[1]} {rgba[2]} {rgba[3]}")
     geom.set("mass", f"{mass}")
+
+    return mjcf
+
+
+def convert_hinge_to_ball_joints(
+    mjcf: ET.Element,
+    ball_joint_map: Dict[str, str],
+    damping: float = 0.01,
+    armature: float = 0.001,
+    frictionloss: float = 0.001,
+) -> ET.Element:
+    """Convert placeholder hinge joints into MuJoCo ball joints.
+
+    After collapsing 3-revolute spherical triplets in the URDF, MuJoCo creates
+    regular hinge joints for them.  This function post-processes the MJCF to
+    turn those hinges into ``type="ball"`` joints, removes hinge-only
+    attributes, and sets damping / armature for numerical stability.
+
+    Args:
+        mjcf: The MJCF root element (modified in-place).
+        ball_joint_map: Mapping from the placeholder joint name (the former
+            ``_x`` revolute joint name) to the spherical group base name.
+            Produced by
+            :func:`~mujoco_urdf_loader.urdf_fcn.collapse_spherical_revolute_triplets`.
+        damping: Viscous damping coefficient applied to each ball joint.
+            A small positive value prevents unconstrained free-spin that
+            causes simulation instability.  Default ``0.01``.
+        armature: Rotor inertia (diagonal) added to each ball joint.
+            Default ``0.001``.
+        frictionloss: Friction loss applied to each ball joint.
+            Default ``0.001``.
+
+    Returns:
+        The modified MJCF element.
+
+    Raises:
+        ValueError: If a placeholder joint name is not found in the MJCF.
+    """
+    for placeholder_name, base_name in ball_joint_map.items():
+        joint_elem = mjcf.find(f".//joint[@name='{placeholder_name}']")
+        if joint_elem is None:
+            raise ValueError(
+                f"Placeholder joint '{placeholder_name}' for spherical group "
+                f"'{base_name}' not found in the MJCF model."
+            )
+
+        # Rename and switch type
+        joint_elem.set("name", f"{base_name}_ball")
+        joint_elem.set("type", "ball")
+
+        # Remove attributes that are only meaningful for hinge / slide joints.
+        # ``limited`` / ``range`` from revolute joints are invalid for ball
+        # joints (ball range[0] must be 0 and represents max deflection).
+        for attr in ("axis", "ref", "limited", "range"):
+            if attr in joint_elem.attrib:
+                del joint_elem.attrib[attr]
+
+        # Set damping and armature for numerical stability
+        joint_elem.set("damping", str(damping))
+        joint_elem.set("armature", str(armature))
+        joint_elem.set("frictionloss", str(frictionloss))
+    return mjcf
+
+
+def add_equality_constraints_for_sites(
+    mjcf: ET.Element,
+    site_pairs: List[tuple],
+    constraint_type: str = "connect",
+    solimp: List[float] = None,
+    solref: List[float] = None,
+) -> ET.Element:
+    """
+    Add equality constraints between pairs of sites in MJCF.
+
+    Args:
+        mjcf (ET.Element): The MJCF file as ElementTree.
+        site_pairs (List[tuple]): List of tuples with (site1_name, site2_name) to connect.
+        constraint_type (str): Type of constraint - "connect" or "weld" (default: "connect").
+        solimp (List[float], optional): Solver impedance parameters for the constraint.
+        solref (List[float], optional): Solver reference parameters for the constraint.
+
+    Returns:
+        ET.Element: The modified MJCF file.
+    """
+    # Find or create the equality element
+    equality = mjcf.find("equality")
+    if equality is None:
+        equality = ET.SubElement(mjcf, "equality")
+
+    for site1, site2 in site_pairs:
+        # Verify both sites exist
+        site1_elem = mjcf.find(f".//site[@name='{site1}']")
+        site2_elem = mjcf.find(f".//site[@name='{site2}']")
+
+        if site1_elem is None:
+            raise ValueError(f"Site {site1} not found in MJCF")
+        if site2_elem is None:
+            raise ValueError(f"Site {site2} not found in MJCF")
+
+        # Create the equality constraint
+        if constraint_type == "connect":
+            # Connect constraint directly references sites (no anchor needed for sites)
+            constraint = ET.SubElement(equality, "connect")
+            constraint.set("site1", site1)
+            constraint.set("site2", site2)
+            if solimp is not None:
+                constraint.set("solimp", " ".join(map(str, solimp)))
+            if solref is not None:
+                constraint.set("solref", " ".join(map(str, solref)))
+        elif constraint_type == "weld":
+            # Weld constraint references bodies
+            # Find parent bodies of the sites
+            body1 = None
+            body2 = None
+            for body in mjcf.findall(".//body"):
+                if body.find(f".//site[@name='{site1}']") is not None:
+                    body1 = body.attrib.get("name")
+                if body.find(f".//site[@name='{site2}']") is not None:
+                    body2 = body.attrib.get("name")
+
+            if body1 is None or body2 is None:
+                raise ValueError(
+                    f"Could not find parent bodies for sites {site1} and {site2}"
+                )
+
+            constraint = ET.SubElement(equality, "weld")
+            constraint.set("body1", body1)
+            constraint.set("body2", body2)
+            if solimp is not None:
+                constraint.set("solimp", " ".join(map(str, solimp)))
+            if solref is not None:
+                constraint.set("solref", " ".join(map(str, solref)))
+        else:
+            raise ValueError(f"Unknown constraint type: {constraint_type}")
+
+        print(
+            f"Created {constraint_type} equality constraint between {site1} and {site2}"
+        )
 
     return mjcf

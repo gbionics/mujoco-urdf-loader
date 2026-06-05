@@ -4,11 +4,13 @@ import pytest
 
 from mujoco_urdf_loader.mjcf_fcn import (
     add_camera,
+    add_equality_constraints_for_sites,
     add_joint_eq,
     add_joint_pos_sensor,
     add_joint_vel_sensor,
     add_new_worldbody,
     add_position_actuator,
+    convert_hinge_to_ball_joints,
     separate_left_right_collision_groups,
     set_collision_groups,
     set_joint_damping,
@@ -187,3 +189,189 @@ def test_set_joint_damping():
 
     assert joint.attrib["damping"] == "1.0"
     return
+
+
+# ---------------------------------------------------------------------------
+# Tests for convert_hinge_to_ball_joints
+# ---------------------------------------------------------------------------
+
+def _make_mjcf_with_hinge():
+    """Build a minimal MJCF with a hinge joint that should be converted to ball."""
+    mjcf = ET.Element("mujoco")
+    worldbody = ET.SubElement(mjcf, "worldbody")
+    body = ET.SubElement(worldbody, "body")
+    body.set("name", "crank")
+
+    child_body = ET.SubElement(body, "body")
+    child_body.set("name", "rod")
+    child_body.set("pos", "0.05 0.02 0")
+
+    joint = ET.SubElement(child_body, "joint")
+    joint.set("name", "spherical_rev_my_rod_x")
+    joint.set("type", "hinge")
+    joint.set("axis", "1 0 0")
+    joint.set("range", "-6.28 6.28")
+    joint.set("limited", "true")
+    joint.set("damping", "0")
+    joint.set("armature", "0")
+
+    # Also add a regular hinge that should NOT be converted
+    other_body = ET.SubElement(worldbody, "body")
+    other_body.set("name", "other")
+    other_joint = ET.SubElement(other_body, "joint")
+    other_joint.set("name", "regular_hinge")
+    other_joint.set("type", "hinge")
+    other_joint.set("axis", "0 1 0")
+
+    return mjcf
+
+
+def test_convert_hinge_to_ball_joints():
+    mjcf = _make_mjcf_with_hinge()
+    ball_map = {"spherical_rev_my_rod_x": "my_rod"}
+
+    convert_hinge_to_ball_joints(mjcf, ball_map)
+
+    # The placeholder joint should now be a ball joint with new name
+    ball = mjcf.find(".//joint[@name='my_rod_ball']")
+    assert ball is not None
+    assert ball.attrib["type"] == "ball"
+
+    # Hinge-only attributes should be removed
+    assert "axis" not in ball.attrib
+    assert "ref" not in ball.attrib
+
+    # Damping and armature should be set (defaults)
+    assert float(ball.attrib["damping"]) == pytest.approx(0.01)
+    assert float(ball.attrib["armature"]) == pytest.approx(0.001)
+
+    # The old name should no longer exist
+    assert mjcf.find(".//joint[@name='spherical_rev_my_rod_x']") is None
+
+
+def test_convert_hinge_to_ball_custom_damping():
+    mjcf = _make_mjcf_with_hinge()
+    ball_map = {"spherical_rev_my_rod_x": "my_rod"}
+
+    convert_hinge_to_ball_joints(mjcf, ball_map, damping=0.5, armature=0.05)
+
+    ball = mjcf.find(".//joint[@name='my_rod_ball']")
+    assert float(ball.attrib["damping"]) == pytest.approx(0.5)
+    assert float(ball.attrib["armature"]) == pytest.approx(0.05)
+
+
+def test_convert_hinge_to_ball_preserves_other_joints():
+    mjcf = _make_mjcf_with_hinge()
+    ball_map = {"spherical_rev_my_rod_x": "my_rod"}
+
+    convert_hinge_to_ball_joints(mjcf, ball_map)
+
+    # The regular hinge should be untouched
+    regular = mjcf.find(".//joint[@name='regular_hinge']")
+    assert regular is not None
+    assert regular.attrib["type"] == "hinge"
+    assert regular.attrib["axis"] == "0 1 0"
+
+
+def test_convert_hinge_to_ball_missing_joint():
+    mjcf = _make_mjcf_with_hinge()
+    ball_map = {"nonexistent_joint": "some_base"}
+
+    with pytest.raises(ValueError, match="nonexistent_joint"):
+        convert_hinge_to_ball_joints(mjcf, ball_map)
+
+
+def test_convert_hinge_to_ball_empty_map():
+    mjcf = _make_mjcf_with_hinge()
+    ball_map = {}
+
+    # Should be a no-op
+    convert_hinge_to_ball_joints(mjcf, ball_map)
+
+    # Original joints should be unchanged
+    assert mjcf.find(".//joint[@name='spherical_rev_my_rod_x']") is not None
+    assert mjcf.find(".//joint[@name='regular_hinge']") is not None
+
+
+# ---------------------------------------------------------------------------
+# Tests for add_equality_constraints_for_sites
+# ---------------------------------------------------------------------------
+
+def _make_mjcf_with_sites():
+    """Build a minimal MJCF with sites for equality constraint tests."""
+    mjcf = ET.Element("mujoco")
+    worldbody = ET.SubElement(mjcf, "worldbody")
+    body_a = ET.SubElement(worldbody, "body")
+    body_a.set("name", "body_a")
+    site_a = ET.SubElement(body_a, "site")
+    site_a.set("name", "site_a")
+    site_a.set("pos", "0 0 0")
+
+    body_b = ET.SubElement(worldbody, "body")
+    body_b.set("name", "body_b")
+    site_b = ET.SubElement(body_b, "site")
+    site_b.set("name", "site_b")
+    site_b.set("pos", "0.1 0.2 0.3")
+
+    site_c = ET.SubElement(body_b, "site")
+    site_c.set("name", "site_c")
+    site_c.set("pos", "0.4 0.5 0.6")
+
+    return mjcf
+
+
+def test_add_equality_constraints_connect():
+    mjcf = _make_mjcf_with_sites()
+
+    mjcf = add_equality_constraints_for_sites(mjcf, [("site_a", "site_b")])
+
+    assert len(mjcf.findall(".//equality")) == 1
+    connects = mjcf.findall(".//equality/connect")
+    assert len(connects) == 1
+    assert connects[0].attrib["site1"] == "site_a"
+    assert connects[0].attrib["site2"] == "site_b"
+
+
+def test_add_equality_constraints_multiple():
+    mjcf = _make_mjcf_with_sites()
+
+    mjcf = add_equality_constraints_for_sites(
+        mjcf, [("site_a", "site_b"), ("site_b", "site_c")]
+    )
+
+    # Only one <equality> element should exist
+    assert len(mjcf.findall(".//equality")) == 1
+    connects = mjcf.findall(".//equality/connect")
+    assert len(connects) == 2
+    assert connects[0].attrib["site1"] == "site_a"
+    assert connects[1].attrib["site1"] == "site_b"
+    assert connects[1].attrib["site2"] == "site_c"
+
+
+def test_add_equality_constraints_weld():
+    mjcf = _make_mjcf_with_sites()
+
+    mjcf = add_equality_constraints_for_sites(
+        mjcf, [("site_a", "site_b")], constraint_type="weld"
+    )
+
+    welds = mjcf.findall(".//equality/weld")
+    assert len(welds) == 1
+    assert welds[0].attrib["body1"] == "body_a"
+    assert welds[0].attrib["body2"] == "body_b"
+
+
+def test_add_equality_constraints_missing_site():
+    mjcf = _make_mjcf_with_sites()
+
+    with pytest.raises(ValueError, match="nonexistent"):
+        add_equality_constraints_for_sites(mjcf, [("site_a", "nonexistent")])
+
+
+def test_add_equality_constraints_unknown_type():
+    mjcf = _make_mjcf_with_sites()
+
+    with pytest.raises(ValueError, match="Unknown constraint type"):
+        add_equality_constraints_for_sites(
+            mjcf, [("site_a", "site_b")], constraint_type="invalid"
+        )

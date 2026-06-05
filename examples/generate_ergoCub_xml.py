@@ -12,7 +12,7 @@ from mujoco_urdf_loader import (
 )
 from mujoco_urdf_loader.urdf_fcn import get_mesh_path
 
-controlled_joints = [
+observed_joints = [
     "l_hip_pitch",
     "r_hip_pitch",
     "torso_roll",
@@ -41,11 +41,16 @@ controlled_joints = [
     "r_elbow",
 ]
 
-control_modes = [ControlMode.TORQUE] * len(controlled_joints)
-stiffness = [0.0] * len(controlled_joints)
-damping = [0.0] * len(controlled_joints)
+control_modes = [ControlMode.TORQUE] * len(observed_joints)
+stiffness = [0.0] * len(observed_joints)
+damping = [0.0] * len(observed_joints)
 
-cfg = URDFtoMuJoCoLoaderCfg(controlled_joints, control_modes, stiffness, damping)
+cfg = URDFtoMuJoCoLoaderCfg(
+    observed_joints=observed_joints,
+    control_modes=control_modes,
+    stiffness=stiffness,
+    damping=damping,
+)
 
 urdf_string = str(
     rru.resolve_robotics_uri("package://ergoCub/robots/ergoCubSN002/model.urdf")
