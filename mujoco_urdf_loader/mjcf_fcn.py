@@ -1,5 +1,5 @@
 import xml.etree.ElementTree as ET
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from scipy.spatial.transform import Rotation
 
@@ -681,5 +681,65 @@ def add_equality_constraints_for_sites(
         print(
             f"Created {constraint_type} equality constraint between {site1} and {site2}"
         )
+
+    return mjcf
+
+
+def add_force_torque_sensor(
+    mjcf: ET.Element,
+    joint: str,
+    sensor_name: Optional[str] = None,
+    noise: Optional[float] = None,
+    cutoff_frequency: Optional[int] = None,
+) -> ET.Element:
+    """
+    Add a force/torque sensor to a site of a body at a given joint location.
+
+    Args:
+        mjcf (ET.Element): The mjcf element.
+        joint (str): The joint to add the sensor to.
+        sensor_name (str): Base name for sensors.
+        noise (float): Sensor noise standard deviation.
+        cutoff_frequency (int): Cutoff frequency in Hz.
+    """
+    # Check if there already is a sensor element in the mjcf
+    sensors = mjcf.find(".//sensor")
+    if sensors is None:
+        sensors = ET.SubElement(mjcf, "sensor")
+
+    # Find the body containing the joint
+    body_with_joint = next(
+        (
+            body
+            for body in mjcf.findall(".//body")
+            if body.find(f".//joint[@name='{joint}']") is not None
+        ),
+        None,
+    )
+
+    if body_with_joint is None:
+        raise ValueError(f"Joint {joint} not found in any body.")
+
+    # Add a site to the body for the sensor at the joint location
+    site_name = f"{joint}_ft_site"
+    site = body_with_joint.find(f"./site[@name='{site_name}']")
+    if site is None:
+        site = ET.SubElement(
+            body_with_joint, "site", name=site_name, pos="0 0 0", size="0.01"
+        )
+
+    optional_attribs = {"noise": noise, "cutoff": cutoff_frequency}
+
+    # Filter out None and <= 0 values and cast to string for XML
+    valid_attribs = {
+        k: str(v) for k, v in optional_attribs.items() if v is not None and v > 0
+    }
+
+    # Create force and torque sensors
+    force_name = sensor_name if sensor_name else f"{joint}_ft_force"
+    ET.SubElement(sensors, "force", name=force_name, site=site_name, **valid_attribs)
+
+    torque_name = f"{sensor_name}_torque" if sensor_name else f"{joint}_ft_torque"
+    ET.SubElement(sensors, "torque", name=torque_name, site=site_name, **valid_attribs)
 
     return mjcf
