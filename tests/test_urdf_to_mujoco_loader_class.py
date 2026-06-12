@@ -130,6 +130,7 @@ def test_total_mass(robot_name):
 
     assert total_mass_mj == pytest.approx(total_mass_idt, abs=1e-4)
 
+
 @pytest.mark.parametrize("robot_name", ["ergoCub", "ANYmal"])
 def test_total_mass_with_missing_links(robot_name):
     robot = ROBOTS[robot_name]

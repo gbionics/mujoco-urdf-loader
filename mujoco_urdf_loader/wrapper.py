@@ -14,8 +14,14 @@ class MujocoWrapper:
     def __post_init__(self):
         self.model = mujoco.MjModel.from_xml_string(self.mjcf)
         self.data = mujoco.MjData(self.model)
-        self.actuator_names = [self.model.actuator(a).name for a in range(self.model.nu)]
-        self.joint_names = [self.model.joint(j).name for j in range(self.model.njnt) if self.model.joint(j).name in self.actuator_names]
+        self.actuator_names = [
+            self.model.actuator(a).name for a in range(self.model.nu)
+        ]
+        self.joint_names = [
+            self.model.joint(j).name
+            for j in range(self.model.njnt)
+            if self.model.joint(j).name in self.actuator_names
+        ]
         logging.info(f"Actuator loaded: {self.actuator_names}")
         self.initialize_joint_mapping()
 
@@ -37,7 +43,9 @@ class MujocoWrapper:
             control (np.ndarray): The control input.
         """
         if control.shape != self.data.ctrl.shape:
-            raise ValueError(f"Control input shape {control.shape} does not match the expected shape {self.data.ctrl.shape}.")
+            raise ValueError(
+                f"Control input shape {control.shape} does not match the expected shape {self.data.ctrl.shape}."
+            )
         self.data.ctrl[:] = control
 
     @property

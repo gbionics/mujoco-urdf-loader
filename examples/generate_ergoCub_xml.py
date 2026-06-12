@@ -64,7 +64,7 @@ path = "ergocub.xml"
 with open(path, "w") as f:
     f.write(loader.get_mjcf_string())
 
-        # include the model in a simple world
+    # include the model in a simple world
 world_str = f"""
     <mujoco model="ergoCubWorld">
         <include file="{path}"/>

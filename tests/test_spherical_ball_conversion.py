@@ -212,6 +212,7 @@ class TestSphericalBallConversionPipeline:
 
         # Should not crash or produce NaN / Inf
         import numpy as np
+
         assert np.all(np.isfinite(data.qpos)), "qpos contains NaN/Inf after simulation"
 
     def test_no_spherical_groups_is_noop(self):

@@ -2,7 +2,11 @@ import xml.etree.ElementTree as ET
 
 import resolve_robotics_uri_py as rru
 
-from mujoco_urdf_loader.loader import GyroSensorCfg, URDFtoMuJoCoLoader, URDFtoMuJoCoLoaderCfg
+from mujoco_urdf_loader.loader import (
+    GyroSensorCfg,
+    URDFtoMuJoCoLoader,
+    URDFtoMuJoCoLoaderCfg,
+)
 from mujoco_urdf_loader.urdf_fcn import get_mesh_path
 
 
@@ -19,7 +23,9 @@ def _make_empty_mjcf() -> ET.Element:
 
 
 def test_add_gyro_sensors_none_keeps_model_unchanged():
-    loader = URDFtoMuJoCoLoader(_make_empty_mjcf(), URDFtoMuJoCoLoaderCfg(observed_joints=[]))
+    loader = URDFtoMuJoCoLoader(
+        _make_empty_mjcf(), URDFtoMuJoCoLoaderCfg(observed_joints=[])
+    )
 
     loader.add_gyro_sensors(None)
 
@@ -27,7 +33,9 @@ def test_add_gyro_sensors_none_keeps_model_unchanged():
 
 
 def test_add_gyro_sensors_accepts_list_of_dataclasses():
-    loader = URDFtoMuJoCoLoader(_make_empty_mjcf(), URDFtoMuJoCoLoaderCfg(observed_joints=[]))
+    loader = URDFtoMuJoCoLoader(
+        _make_empty_mjcf(), URDFtoMuJoCoLoaderCfg(observed_joints=[])
+    )
 
     loader.add_gyro_sensors(
         [
@@ -47,7 +55,9 @@ def test_add_gyro_sensors_accepts_list_of_dataclasses():
 
 
 def test_add_gyro_sensors_accepts_dict():
-    loader = URDFtoMuJoCoLoader(_make_empty_mjcf(), URDFtoMuJoCoLoaderCfg(observed_joints=[]))
+    loader = URDFtoMuJoCoLoader(
+        _make_empty_mjcf(), URDFtoMuJoCoLoaderCfg(observed_joints=[])
+    )
 
     loader.add_gyro_sensors(
         [
@@ -64,7 +74,9 @@ def test_add_gyro_sensors_accepts_dict():
 
 
 def test_add_gyro_sensors_accepts_dict_with_objname_alias():
-    loader = URDFtoMuJoCoLoader(_make_empty_mjcf(), URDFtoMuJoCoLoaderCfg(observed_joints=[]))
+    loader = URDFtoMuJoCoLoader(
+        _make_empty_mjcf(), URDFtoMuJoCoLoaderCfg(observed_joints=[])
+    )
 
     loader.add_gyro_sensors(
         [
@@ -81,7 +93,9 @@ def test_add_gyro_sensors_accepts_dict_with_objname_alias():
 
 
 def test_add_gyro_sensors_to_ergocub_sn001():
-    urdf_root = str(rru.resolve_robotics_uri("package://ergoCub/robots/ergoCubSN001/model.urdf"))
+    urdf_root = str(
+        rru.resolve_robotics_uri("package://ergoCub/robots/ergoCubSN001/model.urdf")
+    )
     observed_joints = [
         "l_hip_pitch",
         "r_hip_pitch",

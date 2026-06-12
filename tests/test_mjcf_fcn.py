@@ -195,6 +195,7 @@ def test_set_joint_damping():
 # Tests for convert_hinge_to_ball_joints
 # ---------------------------------------------------------------------------
 
+
 def _make_mjcf_with_hinge():
     """Build a minimal MJCF with a hinge joint that should be converted to ball."""
     mjcf = ET.Element("mujoco")
@@ -296,6 +297,7 @@ def test_convert_hinge_to_ball_empty_map():
 # ---------------------------------------------------------------------------
 # Tests for add_equality_constraints_for_sites
 # ---------------------------------------------------------------------------
+
 
 def _make_mjcf_with_sites():
     """Build a minimal MJCF with sites for equality constraint tests."""

@@ -4,14 +4,14 @@ import pytest
 
 from mujoco_urdf_loader.urdf_fcn import (
     add_mujoco_element,
+    collapse_spherical_revolute_triplets,
+    detect_spherical_joint_groups,
     get_joint_limits,
     get_mesh_path,
     get_robot_urdf,
     remove_gazebo_elements,
     remove_links_and_joints_by_keep_list,
     remove_links_and_joints_by_remove_list,
-    detect_spherical_joint_groups,
-    collapse_spherical_revolute_triplets,
 )
 
 
@@ -87,6 +87,7 @@ def test_get_joint_limits():
 # ---------------------------------------------------------------------------
 # Tests for spherical joint detection and collapse
 # ---------------------------------------------------------------------------
+
 
 def _make_spherical_urdf():
     """Build a minimal URDF with one spherical-joint triplet (3 revolute + 2 dummy links)."""
@@ -210,12 +211,14 @@ def test_detect_incomplete_triplet():
 
 def test_collapse_spherical_revolute_triplets():
     urdf = _make_spherical_urdf()
-    groups = detect_spherical_joint_groups([
-        "crank_joint",
-        "spherical_rev_my_rod_x",
-        "spherical_rev_my_rod_y",
-        "spherical_rev_my_rod_z",
-    ])
+    groups = detect_spherical_joint_groups(
+        [
+            "crank_joint",
+            "spherical_rev_my_rod_x",
+            "spherical_rev_my_rod_y",
+            "spherical_rev_my_rod_z",
+        ]
+    )
 
     collapsed_urdf, ball_map = collapse_spherical_revolute_triplets(urdf, groups)
 
@@ -244,12 +247,14 @@ def test_collapse_spherical_revolute_triplets():
 
 def test_collapse_preserves_rod_link():
     urdf = _make_spherical_urdf()
-    groups = detect_spherical_joint_groups([
-        "crank_joint",
-        "spherical_rev_my_rod_x",
-        "spherical_rev_my_rod_y",
-        "spherical_rev_my_rod_z",
-    ])
+    groups = detect_spherical_joint_groups(
+        [
+            "crank_joint",
+            "spherical_rev_my_rod_x",
+            "spherical_rev_my_rod_y",
+            "spherical_rev_my_rod_z",
+        ]
+    )
 
     collapsed_urdf, _ = collapse_spherical_revolute_triplets(urdf, groups)
 
@@ -262,12 +267,14 @@ def test_collapse_preserves_rod_link():
 
 def test_collapse_preserves_non_spherical_joints():
     urdf = _make_spherical_urdf()
-    groups = detect_spherical_joint_groups([
-        "crank_joint",
-        "spherical_rev_my_rod_x",
-        "spherical_rev_my_rod_y",
-        "spherical_rev_my_rod_z",
-    ])
+    groups = detect_spherical_joint_groups(
+        [
+            "crank_joint",
+            "spherical_rev_my_rod_x",
+            "spherical_rev_my_rod_y",
+            "spherical_rev_my_rod_z",
+        ]
+    )
 
     collapsed_urdf, _ = collapse_spherical_revolute_triplets(urdf, groups)
 
@@ -279,12 +286,14 @@ def test_collapse_preserves_non_spherical_joints():
 
 def test_collapse_preserves_origin():
     urdf = _make_spherical_urdf()
-    groups = detect_spherical_joint_groups([
-        "crank_joint",
-        "spherical_rev_my_rod_x",
-        "spherical_rev_my_rod_y",
-        "spherical_rev_my_rod_z",
-    ])
+    groups = detect_spherical_joint_groups(
+        [
+            "crank_joint",
+            "spherical_rev_my_rod_x",
+            "spherical_rev_my_rod_y",
+            "spherical_rev_my_rod_z",
+        ]
+    )
 
     collapsed_urdf, _ = collapse_spherical_revolute_triplets(urdf, groups)
 

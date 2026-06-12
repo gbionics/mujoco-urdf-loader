@@ -24,7 +24,13 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Physics",
 ]
 requires-python = ">= 3.10"
-dependencies = ["mujoco", "resolve-robotics-uri-py", "idyntree", "numpy", "scipy"]
+dependencies = [
+    "mujoco",
+    "resolve-robotics-uri-py",
+    "idyntree",
+    "numpy",
+    "scipy",
+]
 
 [project.readme]
 file = "README.md"
@@ -56,6 +62,7 @@ line-length = 88
 [tool.isort]
 profile = "black"
 multi_line_output = 3
+skip = [".pixi"]
 
 [tool.pixi.project]
 channels = ["conda-forge"]
@@ -96,3 +103,6 @@ testing = { features = ["testing"], solve-group = "default" }
 
 [tool.pixi.feature.testing.tasks]
 test = "pytest"
+
+[tool.pixi.feature.development.tasks]
+format = "black . && isort ."
