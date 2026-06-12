@@ -12,6 +12,7 @@ from mujoco_urdf_loader.generator import load_urdf_into_mjcf
 from mujoco_urdf_loader.mjcf_fcn import (
     add_camera_to_site,
     add_equality_constraints_for_sites,
+    add_force_torque_sensor,
     add_framequat_sensor,
     add_gyro_sensor,
     add_position_actuator,
@@ -47,6 +48,20 @@ class GyroSensorCfg:
 
 
 @dataclasses.dataclass
+class ForceTorqueSensorCfg:
+    """
+    Configuration for a force/torque sensor.
+
+    Defaults are taken from https://mujoco.readthedocs.io/en/latest/modeling.html#sensors.
+    """
+
+    joint: str
+    sensor_name: Optional[str] = None
+    noise: Optional[float] = 0.0
+    cutoff_frequency: Optional[int] = 0
+
+
+@dataclasses.dataclass
 class CameraCfg:
     site: str
     fovy: float
@@ -79,6 +94,9 @@ class URDFtoMuJoCoLoaderCfg:
         None, List[Union[FrameQuatSensorCfg, Dict[str, Any]]]
     ] = None
     gyro_sensors_cfg: Union[None, List[Union[GyroSensorCfg, Dict[str, Any]]]] = None
+    force_torque_sensors_cfg: Optional[
+        List[Union[ForceTorqueSensorCfg, Dict[str, Any]]]
+    ] = None
     cameras_cfg: Union[None, List[Union[CameraCfg, Dict[str, Any]]]] = None
     equality_constraints_cfg: Union[
         None, List[Union[EqualityConstraintCfg, Dict[str, Any]]]
@@ -251,6 +269,7 @@ class URDFtoMuJoCoLoader:
             all_missing_joints_as_sites=cfg.all_missing_joints_as_sites,
             framequat_sensors_cfg=cfg.framequat_sensors_cfg,
             gyro_sensors_cfg=cfg.gyro_sensors_cfg,
+            force_torque_sensors_cfg=cfg.force_torque_sensors_cfg,
             cameras_cfg=cfg.cameras_cfg,
             equality_constraints_cfg=cfg.equality_constraints_cfg,
             ball_joint_damping=cfg.ball_joint_damping,
@@ -321,6 +340,7 @@ class URDFtoMuJoCoLoader:
             all_missing_joints_as_sites=cfg.all_missing_joints_as_sites,
             framequat_sensors_cfg=cfg.framequat_sensors_cfg,
             gyro_sensors_cfg=cfg.gyro_sensors_cfg,
+            force_torque_sensors_cfg=cfg.force_torque_sensors_cfg,
             cameras_cfg=cfg.cameras_cfg,
             equality_constraints_cfg=cfg.equality_constraints_cfg,
             ball_joint_damping=cfg.ball_joint_damping,
@@ -408,6 +428,7 @@ class URDFtoMuJoCoLoader:
         loader.add_sites_for_missing_joints(missing_joint_sites)
         loader.add_framequat_sensors(mjcf_cfg.framequat_sensors_cfg)
         loader.add_gyro_sensors(mjcf_cfg.gyro_sensors_cfg)
+        loader.add_force_torque_sensors(mjcf_cfg.force_torque_sensors_cfg)
         loader.add_cameras(mjcf_cfg.cameras_cfg)
         loader.add_equality_constraints(mjcf_cfg.equality_constraints_cfg)
         return loader
@@ -492,6 +513,41 @@ class URDFtoMuJoCoLoader:
                 site=normalized_cfg.site,
                 name=normalized_cfg.name,
             )
+
+    @staticmethod
+    def _normalize_force_torque_sensor_cfg(
+        sensor_cfg: Union[ForceTorqueSensorCfg, Dict[str, Any]],
+    ) -> ForceTorqueSensorCfg:
+        if isinstance(sensor_cfg, ForceTorqueSensorCfg):
+            return sensor_cfg
+
+        if not isinstance(sensor_cfg, dict):
+            raise TypeError(
+                "Each force/torque sensor configuration must be a ForceTorqueSensorCfg "
+                "or a dict with keys joint and sensor_name."
+            )
+
+        # Remove None values from the sensor configuration
+        filtered_cfg = {k: v for k, v in sensor_cfg.items() if v is not None}
+
+        # Check for required 'joint' parameter
+        if "joint" not in filtered_cfg:
+            raise ValueError("Each force/torque sensor requires a 'joint'.")
+
+        return ForceTorqueSensorCfg(**filtered_cfg)
+
+    def add_force_torque_sensors(
+        self,
+        force_torque_sensors_cfg: Union[
+            None, List[Union[ForceTorqueSensorCfg, Dict[str, Any]]]
+        ] = None,
+    ):
+        if not force_torque_sensors_cfg:
+            return
+
+        for sensor_cfg in force_torque_sensors_cfg:
+            normalized_cfg = self._normalize_force_torque_sensor_cfg(sensor_cfg)
+            add_force_torque_sensor(self.mjcf, **dataclasses.asdict(normalized_cfg))
 
     @staticmethod
     def _normalize_camera_cfg(
@@ -677,7 +733,6 @@ class URDFtoMuJoCoLoader:
 
         fixed_joint_sites = []
         for missing_link_name, joint in missing_links.items():
-
             parent_link = joint.find("parent").attrib["link"]
             child_link = missing_link_name
             origin = joint.find("origin")
