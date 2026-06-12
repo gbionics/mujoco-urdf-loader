@@ -7,6 +7,7 @@ from mujoco_urdf_loader.urdf_fcn import (
     get_joint_limits,
     get_mesh_path,
     get_robot_urdf,
+    resolve_mesh_filenames,
     remove_gazebo_elements,
     remove_links_and_joints_by_keep_list,
     remove_links_and_joints_by_remove_list,
@@ -73,6 +74,16 @@ def test_add_mujoco_element():
     robot_urdf = add_mujoco_element(robot_urdf, mesh_path)
     assert robot_urdf is not None
     assert len(robot_urdf.findall(".//mujoco")) == 1
+    return
+
+
+def test_resolve_mesh_filenames():
+    robot_urdf = get_robot_urdf("package://ergoCub/robots/ergoCubSN001/model.urdf")
+    robot_urdf = resolve_mesh_filenames(robot_urdf)
+    mesh = robot_urdf.find(".//mesh")
+    assert mesh is not None
+    assert not mesh.attrib["filename"].startswith("package://")
+    assert mesh.attrib["filename"].endswith(".stl")
     return
 
 

@@ -143,6 +143,24 @@ def add_mujoco_element(robot_urdf: ET.Element, mesh_path: Path) -> ET.Element:
     return new_robot_urdf
 
 
+def resolve_mesh_filenames(robot_urdf: ET.Element) -> ET.Element:
+    """Resolve package mesh URIs to local filesystem paths.
+
+    MuJoCo does not understand package:// URIs inside mesh filenames, so the
+    URDF needs to be rewritten before the XML is parsed.
+    """
+
+    new_robot_urdf = copy.deepcopy(robot_urdf)
+    for mesh in new_robot_urdf.findall(".//mesh"):
+        filename = mesh.attrib.get("filename")
+        if filename is None:
+            continue
+        if filename.startswith("package://"):
+            mesh.set("filename", str(rru.resolve_robotics_uri(filename)))
+
+    return new_robot_urdf
+
+
 def get_joint_limits(robot_urdf: ET.Element) -> dict:
     """
     Get the joint limits from the urdf.

@@ -21,6 +21,7 @@ from mujoco_urdf_loader.urdf_fcn import (
     add_mujoco_element,
     get_mesh_path,
     get_robot_urdf,
+    resolve_mesh_filenames,
     remove_gazebo_elements,
     remove_links_and_joints_by_keep_list,
 )
@@ -33,6 +34,9 @@ mesh_path = get_mesh_path(robot_urdf)
 
 # remove the gazebo elements
 robot_urdf = remove_gazebo_elements(robot_urdf)
+
+# MuJoCo cannot resolve package:// mesh filenames directly.
+robot_urdf = resolve_mesh_filenames(robot_urdf)
 
 # add the mujoco element to be able to load the urdf into the mjcf
 robot_urdf = add_mujoco_element(robot_urdf, mesh_path)

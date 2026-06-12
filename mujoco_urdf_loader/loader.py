@@ -21,6 +21,7 @@ from mujoco_urdf_loader.mjcf_fcn import (
 )
 from mujoco_urdf_loader.urdf_fcn import (
     add_mujoco_element,
+    resolve_mesh_filenames,
     remove_gazebo_elements,
     detect_spherical_joint_groups,
     collapse_spherical_revolute_triplets,
@@ -365,7 +366,8 @@ class URDFtoMuJoCoLoader:
                 f"{[g['base_name'] for g in spherical_groups]}"
             )
 
-        urdf_for_mjcf = add_mujoco_element(reduced_urdf, mesh_path)
+        urdf_for_mjcf = resolve_mesh_filenames(reduced_urdf)
+        urdf_for_mjcf = add_mujoco_element(urdf_for_mjcf, mesh_path)
         mjcf = load_urdf_into_mjcf(urdf_for_mjcf)
         mjcf = separate_left_right_collision_groups(mjcf)
 
