@@ -64,7 +64,7 @@ profile = "black"
 multi_line_output = 3
 skip = [".pixi"]
 
-[tool.pixi.project]
+[tool.pixi.workspace]
 channels = ["conda-forge"]
 platforms = ["linux-64", "linux-aarch64", "win-64", "osx-arm64"]
 

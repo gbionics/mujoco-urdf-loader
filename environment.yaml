@@ -10,3 +10,5 @@ dependencies:
   - numpy
   - scipy
   - pyyaml
+  - idyntree
+  - ergocub-software
