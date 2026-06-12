@@ -3,7 +3,11 @@ import xml.etree.ElementTree as ET
 import pytest
 import resolve_robotics_uri_py as rru
 
-from mujoco_urdf_loader.loader import FrameQuatSensorCfg, URDFtoMuJoCoLoader, URDFtoMuJoCoLoaderCfg
+from mujoco_urdf_loader.loader import (
+    FrameQuatSensorCfg,
+    URDFtoMuJoCoLoader,
+    URDFtoMuJoCoLoaderCfg,
+)
 from mujoco_urdf_loader.urdf_fcn import get_mesh_path
 
 
@@ -20,7 +24,9 @@ def _make_empty_mjcf() -> ET.Element:
 
 
 def test_add_framequat_sensors_none_keeps_model_unchanged():
-    loader = URDFtoMuJoCoLoader(_make_empty_mjcf(), URDFtoMuJoCoLoaderCfg(observed_joints=[]))
+    loader = URDFtoMuJoCoLoader(
+        _make_empty_mjcf(), URDFtoMuJoCoLoaderCfg(observed_joints=[])
+    )
 
     loader.add_framequat_sensors(None)
 
@@ -28,7 +34,9 @@ def test_add_framequat_sensors_none_keeps_model_unchanged():
 
 
 def test_add_framequat_sensors_accepts_list_of_dataclasses():
-    loader = URDFtoMuJoCoLoader(_make_empty_mjcf(), URDFtoMuJoCoLoaderCfg(observed_joints=[]))
+    loader = URDFtoMuJoCoLoader(
+        _make_empty_mjcf(), URDFtoMuJoCoLoaderCfg(observed_joints=[])
+    )
 
     loader.add_framequat_sensors(
         [
@@ -50,7 +58,9 @@ def test_add_framequat_sensors_accepts_list_of_dataclasses():
 
 
 def test_add_framequat_sensors_accepts_dict_with_obtype_alias():
-    loader = URDFtoMuJoCoLoader(_make_empty_mjcf(), URDFtoMuJoCoLoaderCfg(observed_joints=[]))
+    loader = URDFtoMuJoCoLoader(
+        _make_empty_mjcf(), URDFtoMuJoCoLoaderCfg(observed_joints=[])
+    )
 
     loader.add_framequat_sensors(
         [
@@ -69,14 +79,18 @@ def test_add_framequat_sensors_accepts_dict_with_obtype_alias():
 
 
 def test_add_framequat_sensors_raises_on_missing_required_fields():
-    loader = URDFtoMuJoCoLoader(_make_empty_mjcf(), URDFtoMuJoCoLoaderCfg(observed_joints=[]))
+    loader = URDFtoMuJoCoLoader(
+        _make_empty_mjcf(), URDFtoMuJoCoLoaderCfg(observed_joints=[])
+    )
 
     with pytest.raises(ValueError):
         loader.add_framequat_sensors([{"objname": "imu_frame", "name": "imu_quat"}])
 
 
 def test_add_framequat_sensors_to_ergocub_sn001():
-    urdf_root = str(rru.resolve_robotics_uri("package://ergoCub/robots/ergoCubSN001/model.urdf"))
+    urdf_root = str(
+        rru.resolve_robotics_uri("package://ergoCub/robots/ergoCubSN001/model.urdf")
+    )
     observed_joints = [
         "l_hip_pitch",
         "r_hip_pitch",
@@ -107,8 +121,12 @@ def test_add_framequat_sensors_to_ergocub_sn001():
     ]
     mesh_path = get_mesh_path(ET.parse(urdf_root).getroot())
     framequat_sensors_cfg = [
-        FrameQuatSensorCfg(objname="realsense_depth_frame", objtype="site", name="realsense_depth_quat"),
-        FrameQuatSensorCfg(objname="realsense_rgb_frame", objtype="site", name="realsense_rgb_quat"),
+        FrameQuatSensorCfg(
+            objname="realsense_depth_frame", objtype="site", name="realsense_depth_quat"
+        ),
+        FrameQuatSensorCfg(
+            objname="realsense_rgb_frame", objtype="site", name="realsense_rgb_quat"
+        ),
     ]
     cfg = URDFtoMuJoCoLoaderCfg(
         observed_joints=observed_joints,

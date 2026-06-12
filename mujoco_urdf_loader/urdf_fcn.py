@@ -167,6 +167,7 @@ def get_joint_limits(robot_urdf: ET.Element) -> dict:
 
     return joint_limits
 
+
 def get_joint_couplings(robot_urdf: ET.Element) -> dict:
     """
     Get the joint couplings from the urdf.
@@ -209,9 +210,7 @@ def detect_spherical_joint_groups(
         - ``base_name`` (str): e.g. ``"r_motor_rod_in"``
         - ``joint_x``, ``joint_y``, ``joint_z`` (str): full joint names
     """
-    suffix_re = re.compile(
-        rf"^{re.escape(rev_joint_prefix)}(.+)_(x|y|z)$"
-    )
+    suffix_re = re.compile(rf"^{re.escape(rev_joint_prefix)}(.+)_(x|y|z)$")
 
     # Collect base_name -> {axis: joint_name}
     candidates: Dict[str, Dict[str, str]] = {}

@@ -1,11 +1,14 @@
 import xml.etree.ElementTree as ET
 
 import pytest
-
-from mujoco_urdf_loader.loader import CameraCfg, URDFtoMuJoCoLoader, URDFtoMuJoCoLoaderCfg
-from mujoco_urdf_loader.urdf_fcn import get_mesh_path
-
 import resolve_robotics_uri_py as rru
+
+from mujoco_urdf_loader.loader import (
+    CameraCfg,
+    URDFtoMuJoCoLoader,
+    URDFtoMuJoCoLoaderCfg,
+)
+from mujoco_urdf_loader.urdf_fcn import get_mesh_path
 
 
 def _make_empty_mjcf() -> ET.Element:
@@ -24,7 +27,9 @@ def _make_empty_mjcf() -> ET.Element:
 
 
 def test_add_cameras_none_keeps_model_unchanged():
-    loader = URDFtoMuJoCoLoader(_make_empty_mjcf(), URDFtoMuJoCoLoaderCfg(observed_joints=[]))
+    loader = URDFtoMuJoCoLoader(
+        _make_empty_mjcf(), URDFtoMuJoCoLoaderCfg(observed_joints=[])
+    )
 
     loader.add_cameras(None)
 
@@ -32,7 +37,9 @@ def test_add_cameras_none_keeps_model_unchanged():
 
 
 def test_add_cameras_accepts_list_of_dataclasses():
-    loader = URDFtoMuJoCoLoader(_make_empty_mjcf(), URDFtoMuJoCoLoaderCfg(observed_joints=[]))
+    loader = URDFtoMuJoCoLoader(
+        _make_empty_mjcf(), URDFtoMuJoCoLoaderCfg(observed_joints=[])
+    )
 
     loader.add_cameras(
         [
@@ -52,7 +59,9 @@ def test_add_cameras_accepts_list_of_dataclasses():
 
 
 def test_add_cameras_accepts_dict_with_site_key():
-    loader = URDFtoMuJoCoLoader(_make_empty_mjcf(), URDFtoMuJoCoLoaderCfg(observed_joints=[]))
+    loader = URDFtoMuJoCoLoader(
+        _make_empty_mjcf(), URDFtoMuJoCoLoaderCfg(observed_joints=[])
+    )
 
     loader.add_cameras(
         [
@@ -70,7 +79,9 @@ def test_add_cameras_accepts_dict_with_site_key():
 
 
 def test_add_cameras_accepts_dict_with_link_alias():
-    loader = URDFtoMuJoCoLoader(_make_empty_mjcf(), URDFtoMuJoCoLoaderCfg(observed_joints=[]))
+    loader = URDFtoMuJoCoLoader(
+        _make_empty_mjcf(), URDFtoMuJoCoLoaderCfg(observed_joints=[])
+    )
 
     loader.add_cameras(
         [
@@ -88,40 +99,45 @@ def test_add_cameras_accepts_dict_with_link_alias():
 
 
 def test_add_cameras_raises_on_missing_required_fields():
-    loader = URDFtoMuJoCoLoader(_make_empty_mjcf(), URDFtoMuJoCoLoaderCfg(observed_joints=[]))
+    loader = URDFtoMuJoCoLoader(
+        _make_empty_mjcf(), URDFtoMuJoCoLoaderCfg(observed_joints=[])
+    )
 
     with pytest.raises(ValueError):
         loader.add_cameras([{"name": "root_depth_camera", "fovy": 60.0}])
 
+
 def test_add_cameras_to_ergocub_sn001():
-    urdf_root = str(rru.resolve_robotics_uri("package://ergoCub/robots/ergoCubSN001/model.urdf"))
+    urdf_root = str(
+        rru.resolve_robotics_uri("package://ergoCub/robots/ergoCubSN001/model.urdf")
+    )
     observed_joints = [
-            "l_hip_pitch",
-            "r_hip_pitch",
-            "torso_roll",
-            "l_hip_roll",
-            "r_hip_roll",
-            "torso_pitch",
-            "torso_yaw",
-            "l_hip_yaw",
-            "r_hip_yaw",
-            "l_shoulder_pitch",
-            "neck_pitch",
-            "r_shoulder_pitch",
-            "l_knee",
-            "r_knee",
-            "l_shoulder_roll",
-            "neck_roll",
-            "r_shoulder_roll",
-            "l_ankle_pitch",
-            "r_ankle_pitch",
-            "neck_yaw",
-            "l_ankle_roll",
-            "r_ankle_roll",
-            "l_shoulder_yaw",
-            "r_shoulder_yaw",
-            "l_elbow",
-            "r_elbow",
+        "l_hip_pitch",
+        "r_hip_pitch",
+        "torso_roll",
+        "l_hip_roll",
+        "r_hip_roll",
+        "torso_pitch",
+        "torso_yaw",
+        "l_hip_yaw",
+        "r_hip_yaw",
+        "l_shoulder_pitch",
+        "neck_pitch",
+        "r_shoulder_pitch",
+        "l_knee",
+        "r_knee",
+        "l_shoulder_roll",
+        "neck_roll",
+        "r_shoulder_roll",
+        "l_ankle_pitch",
+        "r_ankle_pitch",
+        "neck_yaw",
+        "l_ankle_roll",
+        "r_ankle_roll",
+        "l_shoulder_yaw",
+        "r_shoulder_yaw",
+        "l_elbow",
+        "r_elbow",
     ]
     mesh_path = get_mesh_path(ET.parse(urdf_root).getroot())
     cameras_cfg = [

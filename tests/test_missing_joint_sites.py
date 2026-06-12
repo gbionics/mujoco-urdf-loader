@@ -1,13 +1,17 @@
 import xml.etree.ElementTree as ET
 
-from mujoco_urdf_loader.loader import ControlMode, URDFtoMuJoCoLoader, URDFtoMuJoCoLoaderCfg
-from mujoco_urdf_loader.urdf_fcn import get_mesh_path
-
-import resolve_robotics_uri_py as rru
-
+import idyntree.bindings as idyntree
 import mujoco
 import numpy as np
-import idyntree.bindings as idyntree
+import resolve_robotics_uri_py as rru
+
+from mujoco_urdf_loader.loader import (
+    ControlMode,
+    URDFtoMuJoCoLoader,
+    URDFtoMuJoCoLoaderCfg,
+)
+from mujoco_urdf_loader.urdf_fcn import get_mesh_path
+
 
 def _make_urdf_root() -> ET.Element:
     return ET.fromstring(
@@ -107,35 +111,38 @@ def test_add_sites_for_missing_joints_handles_nested_lumped_missing_joints():
     pos = list(map(float, site.attrib["pos"].split()))
     assert pos == [1.0, 2.0, 0.0]
 
+
 def test_ergocub_sn001_missing_joint_sites():
-    urdf_root = str(rru.resolve_robotics_uri("package://ergoCub/robots/ergoCubSN001/model.urdf"))
+    urdf_root = str(
+        rru.resolve_robotics_uri("package://ergoCub/robots/ergoCubSN001/model.urdf")
+    )
     observed_joints = [
-            "l_hip_pitch",
-            "r_hip_pitch",
-            "torso_roll",
-            "l_hip_roll",
-            "r_hip_roll",
-            "torso_pitch",
-            "torso_yaw",
-            "l_hip_yaw",
-            "r_hip_yaw",
-            "l_shoulder_pitch",
-            "neck_pitch",
-            "r_shoulder_pitch",
-            "l_knee",
-            "r_knee",
-            "l_shoulder_roll",
-            "neck_roll",
-            "r_shoulder_roll",
-            "l_ankle_pitch",
-            "r_ankle_pitch",
-            "neck_yaw",
-            "l_ankle_roll",
-            "r_ankle_roll",
-            "l_shoulder_yaw",
-            "r_shoulder_yaw",
-            "l_elbow",
-            "r_elbow",
+        "l_hip_pitch",
+        "r_hip_pitch",
+        "torso_roll",
+        "l_hip_roll",
+        "r_hip_roll",
+        "torso_pitch",
+        "torso_yaw",
+        "l_hip_yaw",
+        "r_hip_yaw",
+        "l_shoulder_pitch",
+        "neck_pitch",
+        "r_shoulder_pitch",
+        "l_knee",
+        "r_knee",
+        "l_shoulder_roll",
+        "neck_roll",
+        "r_shoulder_roll",
+        "l_ankle_pitch",
+        "r_ankle_pitch",
+        "neck_yaw",
+        "l_ankle_roll",
+        "r_ankle_roll",
+        "l_shoulder_yaw",
+        "r_shoulder_yaw",
+        "l_elbow",
+        "r_elbow",
     ]
     mesh_path = get_mesh_path(ET.parse(urdf_root).getroot())
     cfg = URDFtoMuJoCoLoaderCfg(
@@ -170,8 +177,7 @@ def test_ergocub_sn001_missing_joint_sites():
     # Collect MuJoCo site names that also exist as frames in iDynTree
     all_site_names = [mj_model.site(i).name for i in range(mj_model.nsite)]
     sites_to_check = [
-        name for name in all_site_names
-        if reduced_model.getFrameIndex(name) >= 0
+        name for name in all_site_names if reduced_model.getFrameIndex(name) >= 0
     ]
     assert len(sites_to_check) > 0, "No sites with matching iDynTree frames found"
 
@@ -186,8 +192,12 @@ def test_ergocub_sn001_missing_joint_sites():
 
     nr_random_joints_cfg = 5
 
-    sites_with_pos_mismatches = set()  # to track which sites had mismatches across all configurations
-    sites_with_rot_mismatches = set()  # to track which sites had mismatches across all configurations
+    sites_with_pos_mismatches = (
+        set()
+    )  # to track which sites had mismatches across all configurations
+    sites_with_rot_mismatches = (
+        set()
+    )  # to track which sites had mismatches across all configurations
     for joint_cfg_nr in range(nr_random_joints_cfg):
         # Sample random joint positions within limits
         s_ctrl = np.random.uniform(joint_limits[:, 0], joint_limits[:, 1])
@@ -205,8 +215,11 @@ def test_ergocub_sn001_missing_joint_sites():
         gravity.setVal(2, -9.81)
 
         kin_dyn.setRobotState(
-            idyntree.Transform.Identity(), s,
-            idyntree.Twist(), ds, gravity,
+            idyntree.Transform.Identity(),
+            s,
+            idyntree.Twist(),
+            ds,
+            gravity,
         )
 
         # ---- MuJoCo: set qpos and run forward kinematics ----
@@ -237,21 +250,29 @@ def test_ergocub_sn001_missing_joint_sites():
 
             try:
                 np.testing.assert_allclose(
-                    mj_pos, idt_pos, atol=1e-3,
+                    mj_pos,
+                    idt_pos,
+                    atol=1e-3,
                     err_msg=f"Position mismatch for site '{site_name}' in joint configuration #{joint_cfg_nr}",
                 )
             except AssertionError as e:
-                # print(e) 
+                # print(e)
                 sites_with_pos_mismatches.add(site_name)
 
             try:
                 np.testing.assert_allclose(
-                    mj_rot, idt_rot, atol=1e-3,
+                    mj_rot,
+                    idt_rot,
+                    atol=1e-3,
                     err_msg=f"Rotation mismatch for site '{site_name}' in joint configuration #{joint_cfg_nr}",
                 )
             except AssertionError as e:
-                # print(e) 
+                # print(e)
                 sites_with_rot_mismatches.add(site_name)
 
-    assert len(sites_with_pos_mismatches) == 0, f"Position mismatches found for sites: {sites_with_pos_mismatches}"
-    assert len(sites_with_rot_mismatches) == 0, f"Rotation mismatches found for sites: {sites_with_rot_mismatches}"
+    assert (
+        len(sites_with_pos_mismatches) == 0
+    ), f"Position mismatches found for sites: {sites_with_pos_mismatches}"
+    assert (
+        len(sites_with_rot_mismatches) == 0
+    ), f"Rotation mismatches found for sites: {sites_with_rot_mismatches}"

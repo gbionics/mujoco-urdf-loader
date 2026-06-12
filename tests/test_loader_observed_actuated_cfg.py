@@ -202,9 +202,9 @@ def test_only_actuated_subset_gets_actuators():
         actuator.attrib["joint"] for actuator in loader.mjcf.findall(".//actuator/*")
     )
     assert actuator_joints == ["l_hip_pitch", "l_motor_1"]
-    assert loader.mjcf.find(
-        ".//actuator/*[@joint='l_motor_rod_in_universal_0']"
-    ) is None
+    assert (
+        loader.mjcf.find(".//actuator/*[@joint='l_motor_rod_in_universal_0']") is None
+    )
 
 
 def test_observed_joint_without_actuator_remains_readable():
@@ -310,14 +310,19 @@ def test_joint_dynamics_are_set_from_observed_joint_lists():
     assert loader.mjcf.find(".//joint[@name='l_hip_pitch']").attrib["damping"] == "0.1"
     assert loader.mjcf.find(".//joint[@name='l_motor_1']").attrib["damping"] == "0.2"
     assert (
-        loader.mjcf.find(".//joint[@name='l_motor_rod_in_universal_0']").attrib["damping"]
+        loader.mjcf.find(".//joint[@name='l_motor_rod_in_universal_0']").attrib[
+            "damping"
+        ]
         == "0.3"
     )
 
     assert (
-        loader.mjcf.find(".//joint[@name='l_hip_pitch']").attrib["frictionloss"] == "1.0"
+        loader.mjcf.find(".//joint[@name='l_hip_pitch']").attrib["frictionloss"]
+        == "1.0"
     )
-    assert loader.mjcf.find(".//joint[@name='l_motor_1']").attrib["frictionloss"] == "2.0"
+    assert (
+        loader.mjcf.find(".//joint[@name='l_motor_1']").attrib["frictionloss"] == "2.0"
+    )
     assert (
         loader.mjcf.find(".//joint[@name='l_motor_rod_in_universal_0']").attrib[
             "frictionloss"
