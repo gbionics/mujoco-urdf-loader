@@ -11,4 +11,4 @@ dependencies:
   - scipy
   - pyyaml
   - idyntree
-  - ergocub-software
+  - ergocub-models

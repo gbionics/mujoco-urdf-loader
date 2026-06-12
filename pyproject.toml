@@ -86,7 +86,7 @@ pre-commit = "*"
 pytest = ">=6.0"
 robot_descriptions = "*"
 # This is just here as ergocub-software is not available on pypi
-ergocub-software = "*"
+ergocub-models = "*"
 # This should not be necessary, but without that we get "missing module smmap"
 # when animal_c is loaded, let's add it for now but it may be worth in the future
 # to check if we can remove it
