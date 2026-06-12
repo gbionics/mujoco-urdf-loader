@@ -23,8 +23,9 @@ jobs:
       matrix:
         # Windows disabled as a workaround for https://github.com/ami-iit/mujoco-urdf-loader/issues/11
         os: [
-          ubuntu-latest,
-          macos-latest
+          ubuntu-slim,
+          macos-latest,
+          windows-latest,
         ]
     steps:
     - uses: actions/checkout@v4
