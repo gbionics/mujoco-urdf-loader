@@ -82,6 +82,7 @@ with open("ergoCub_torso.xml", "w") as f:
 
 with tempfile.NamedTemporaryFile(mode="w+") as path_temp_xml:
     path_temp_xml.write(torso_str)
+    path_temp_xml.flush()
     world_str = f"""
     <mujoco model="ergoCubWorld">
         <include file="{path_temp_xml.name}"/>
