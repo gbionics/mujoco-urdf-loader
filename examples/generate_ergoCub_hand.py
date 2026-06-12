@@ -77,6 +77,7 @@ with open("ergoCub_hand.xml", "w") as f:
 # save the model to a temporary file
 with tempfile.NamedTemporaryFile(mode="w+") as path_temp_xml:
     path_temp_xml.write(hand_str)
+    path_temp_xml.flush()
     world_str = f"""
     <mujoco model="ergoCubWorld">
         <include file="{path_temp_xml.name}"/>

@@ -91,6 +91,7 @@ with open("ergoCub.xml", "w") as f:
 path_temp_xml = tempfile.NamedTemporaryFile(mode="w+")
 with open(path_temp_xml.name, "w") as f:
     f.write(mjmodel_str)
+    f.flush()
 
 # include the model in a simple world
 world_str = f"""
