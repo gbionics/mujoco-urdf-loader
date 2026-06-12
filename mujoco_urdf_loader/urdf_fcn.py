@@ -136,10 +136,8 @@ def add_mujoco_element(robot_urdf: ET.Element, mesh_path: Path) -> ET.Element:
     new_robot_urdf = copy.deepcopy(robot_urdf)
     mujoco_elements = ET.SubElement(new_robot_urdf, "mujoco")
     compiler = ET.SubElement(mujoco_elements, "compiler")
-    compiler.set(
-        "meshdir",
-        str(mesh_path),
-    )
+    compiler.set("meshdir", str(mesh_path))
+    compiler.set("strippath", "true")
     return new_robot_urdf
 
 
