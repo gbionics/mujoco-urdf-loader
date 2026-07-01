@@ -703,11 +703,11 @@ class URDFtoMuJoCoLoader:
         all_joint_elements = robot_urdf.findall(".//joint")
 
         # Collect all URDF link names
-        urdf_link_names = {
+        urdf_link_names = [
             link.attrib["name"]
             for link in robot_urdf.findall(".//link")
             if "name" in link.attrib
-        }
+        ]
 
         # Collect MJCF body names
         mjcf_body_names = {
