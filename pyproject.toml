@@ -68,6 +68,8 @@ skip = [".pixi"]
 channels = ["conda-forge"]
 platforms = ["linux-64", "linux-aarch64", "win-64", "osx-arm64"]
 
+# Workaround for https://github.com/gbionics/mujoco-urdf-loader/pull/34
+#     also check parselmouth on https://github.com/prefix-dev/parselmouth/issues/80
 [tool.pixi.workspace.conda-pypi-map]
 conda-forge = { mapping-mode = "overlay", mapping = { idyntree-python = "idyntree" } }
 
