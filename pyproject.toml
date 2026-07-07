@@ -68,6 +68,9 @@ skip = [".pixi"]
 channels = ["conda-forge"]
 platforms = ["linux-64", "linux-aarch64", "win-64", "osx-arm64"]
 
+[tool.pixi.workspace.conda-pypi-map]
+conda-forge = { mapping-mode = "overlay", mapping = { idyntree-python = "idyntree" } }
+
 # We duplicate the dependencies here to ensure that they are installed via conda
 # instead of pypi, that may not be necessary at some point in future pixi versions
 # if pixi learns to automatically solve pypi dependencies via conda packages,
